@@ -960,8 +960,16 @@ async function completeTask(taskId, ownerName, buttonEl) {
   // success: true なら成功（trueでない場合のみ失敗扱い）
   if (data && data.success === true) {
     showToast('完了しました ✓');
-    _openTasksDirty = true;
-    _myTasksDirty = true;
+    // 現在のタブを即座に再描画
+    if (currentTab === 'mytasks') {
+      await loadMyTasks();
+      await loadOpenTasks(); // オープン業務も連動更新
+    } else if (currentTab === 'open') {
+      await loadOpenTasks();
+      await loadMyTasks(); // 自分のタスクも連動更新
+    } else if (currentTab === 'home') {
+      await loadHome();
+    }
   } else {
     // 失敗した場合はグレーアウトを戻す
     if (card) card.classList.remove('completing');
