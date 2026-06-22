@@ -226,8 +226,13 @@
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
+    transition: background .15s, transform .1s;
+    -webkit-tap-highlight-color: transparent;
   }
-  .btn-complete:active { transform: scale(0.97); }
+  .btn-complete:active {
+    transform: scale(0.95);
+    background: #1e3a22; /* 押した瞬間に濃い緑に */
+  }
   .btn-secondary {
     padding: 9px 14px;
     background: var(--highlight);
@@ -236,6 +241,21 @@
     border-radius: 8px;
     font-size: 13px;
     cursor: pointer;
+    transition: background .15s, transform .1s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn-secondary:active {
+    transform: scale(0.95);
+    background: #d9d2c4; /* 押した瞬間に少し濃く */
+  }
+  /* 完了済みカードのスタイル（即時フィードバック用） */
+  .task-card.completing {
+    opacity: 0.55;
+    transition: opacity .3s;
+  }
+  .task-card.completing .task-name {
+    text-decoration: line-through;
+    color: var(--muted);
   }
 
   .latest-comment {
@@ -854,7 +874,7 @@ function renderTaskCard(t, opts) {
 
   let actions = '';
   if (opts.showComplete) {
-    actions += '<button class="btn-complete" onclick="completeTask(\'' + t.id + '\', \'' + opts.owner + '\')">完了にする</button>';
+    actions += '<button class="btn-complete" onclick="completeTask(\'' + t.id + '\', \'' + opts.owner + '\', this)">完了にする</button>';
   }
   if (opts.showEdit) {
     actions += '<button class="btn-secondary" onclick="openEditTaskModal(\'' + t.id + '\')">編集</button>';
@@ -885,12 +905,31 @@ function escapeHtml(str) {
 // ------------------------------------------------------------
 // タスク完了
 // ------------------------------------------------------------
-async function completeTask(taskId, ownerName) {
+async function completeTask(taskId, ownerName, buttonEl) {
   if (!confirm('このタスクを完了にしますか？')) return;
+
+  // ① ボタンを押した瞬間にカードを即時グレーアウト（APIの応答を待たない）
+  if (buttonEl) {
+    const card = buttonEl.closest('.task-card');
+    if (card) {
+      card.classList.add('completing');
+      // 完了ボタンだけ消す（コメント・編集ボタンは残す）
+      buttonEl.style.display = 'none';
+    }
+  }
+
+  // ② バックエンドに完了を書き込む
   const data = await callApi('completeTask', { staffName: ownerName, taskId: taskId });
   if (data.success) {
-    showToast('完了しました');
-    loadTabData(currentTab);
+    showToast('完了しました ✓');
+  } else {
+    // 失敗した場合はグレーアウトを戻す
+    if (buttonEl) {
+      const card = buttonEl.closest('.task-card');
+      if (card) card.classList.remove('completing');
+      buttonEl.style.display = '';
+    }
+    showToast('エラーが発生しました。もう一度試してください');
   }
 }
 
