@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>タスク共有 | 梅北店</title>
+<title>タスク共有 | 梅北セントラルキッチン</title>
 <style>
   :root {
     --ink: #1a1209;
@@ -456,7 +456,93 @@
   .minutes-item .date { font-size: 15px; font-weight: 700; }
   .minutes-item .next { font-size: 12px; color: var(--muted); margin-top: 4px; }
 
-  /* ===== トースト・ローディング ===== */
+  /* ===== 議事録詳細閲覧画面（全画面スライドイン） ===== */
+  #minutesDetailScreen {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    background: var(--paper);
+    overflow-y: auto;
+    animation: slideInRight .2s ease;
+  }
+  #minutesDetailScreen.active { display: block; }
+  @keyframes slideInRight {
+    from { transform: translateX(30px); opacity: 0; }
+    to   { transform: translateX(0); opacity: 1; }
+  }
+  .detail-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--ink);
+    color: var(--paper);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .detail-header .back-btn {
+    background: none;
+    border: none;
+    color: var(--paper);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0 6px 0 0;
+    line-height: 1;
+  }
+  .detail-header .detail-title {
+    flex: 1;
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .detail-header .edit-btn {
+    background: rgba(255,255,255,0.15);
+    border: none;
+    color: var(--paper);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 7px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .detail-body { padding: 20px 16px 40px; }
+  .detail-section {
+    margin-bottom: 24px;
+  }
+  .detail-section-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .detail-section-content {
+    background: var(--card-bg);
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-size: 15px;
+    line-height: 1.8;
+    white-space: pre-wrap;
+    min-height: 60px;
+    color: var(--ink);
+  }
+  .detail-section-content.empty {
+    color: var(--muted);
+    font-style: italic;
+  }
+  .detail-next-date {
+    display: inline-block;
+    background: var(--highlight);
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 15px;
+    padding: 8px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--rule);
+  }
   #toast {
     position: fixed;
     bottom: 90px;
@@ -654,6 +740,29 @@
 </div>
 
 <div id="toast"></div>
+
+<!-- ===== 議事録詳細閲覧画面（全画面） ===== -->
+<div id="minutesDetailScreen">
+  <div class="detail-header">
+    <button class="back-btn" onclick="closeMinutesDetail()">←</button>
+    <div class="detail-title" id="minutesDetailTitle">議事録</div>
+    <button class="edit-btn" onclick="openMinutesEditModal()">編集</button>
+  </div>
+  <div class="detail-body">
+    <div class="detail-section">
+      <div class="detail-section-label">議題</div>
+      <div class="detail-section-content" id="minutesDetailTopic"></div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-label">決定事項</div>
+      <div class="detail-section-content" id="minutesDetailDecision"></div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-label">次回予定日</div>
+      <div id="minutesDetailNextDate"></div>
+    </div>
+  </div>
+</div>
 
 <script>
 // ============================================================
@@ -1195,23 +1304,72 @@ async function loadMinutesList() {
 
   el.innerHTML = data.minutesList.length > 0
     ? data.minutesList.map(function (m) {
-        return '<div class="minutes-item" onclick="openMinutesDetail(\'' + m.sheetName + '\')">' +
-          '<div class="date">' + m.heldDate + ' の議事録</div>' +
-          (m.nextDate ? '<div class="next">次回予定：' + m.nextDate + '</div>' : '<div class="next">次回未定</div>') +
+        return '<div class="minutes-item" data-sheet-name="' + escapeHtml(m.sheetName) + '" onclick="openMinutesDetail(this.dataset.sheetName)">' +
+          '<div class="date">' + escapeHtml(m.heldDate || '') + ' の議事録</div>' +
+          (m.nextDate ? '<div class="next">次回予定：' + escapeHtml(m.nextDate) + '</div>' : '<div class="next">次回未定</div>') +
         '</div>';
       }).join('')
     : '<div class="empty-state">議事録はまだありません</div>';
 }
 
+// 議事録詳細を「閲覧モード」で全画面表示する
 async function openMinutesDetail(sheetName) {
   const data = await callApi('getMinutesDetail', { sheetName: sheetName });
   if (!data.success) { showToast(data.error || '取得に失敗しました'); return; }
 
   activeMinutesSheetName = sheetName;
-  document.getElementById('minutesModalTitle').textContent = data.title || sheetName;
-  document.getElementById('minutesTopic').value = data.topic || '';
-  document.getElementById('minutesDecision').value = data.decision || '';
-  document.getElementById('minutesNextDate').value = data.nextDate || '';
+
+  // 詳細画面のタイトル
+  document.getElementById('minutesDetailTitle').textContent = data.title || sheetName;
+
+  // 議題
+  const topicEl = document.getElementById('minutesDetailTopic');
+  if (data.topic) {
+    topicEl.textContent = data.topic;
+    topicEl.classList.remove('empty');
+  } else {
+    topicEl.textContent = '（未記入）';
+    topicEl.classList.add('empty');
+  }
+
+  // 決定事項
+  const decisionEl = document.getElementById('minutesDetailDecision');
+  if (data.decision) {
+    decisionEl.textContent = data.decision;
+    decisionEl.classList.remove('empty');
+  } else {
+    decisionEl.textContent = '（未記入）';
+    decisionEl.classList.add('empty');
+  }
+
+  // 次回予定日
+  const nextDateEl = document.getElementById('minutesDetailNextDate');
+  if (data.nextDate) {
+    nextDateEl.innerHTML = '<span class="detail-next-date">📅 ' + escapeHtml(data.nextDate) + '</span>';
+  } else {
+    nextDateEl.innerHTML = '<span class="detail-next-date" style="color:var(--muted)">未定</span>';
+  }
+
+  // 全画面の詳細画面を表示
+  document.getElementById('minutesDetailScreen').classList.add('active');
+  document.getElementById('minutesDetailScreen').scrollTop = 0;
+}
+
+// 詳細閲覧画面を閉じて議事録一覧に戻る
+function closeMinutesDetail() {
+  document.getElementById('minutesDetailScreen').classList.remove('active');
+}
+
+// 詳細閲覧画面の「編集」ボタンから編集モーダルを開く
+function openMinutesEditModal() {
+  // 編集モーダルに現在の詳細内容をセット
+  document.getElementById('minutesModalTitle').textContent = document.getElementById('minutesDetailTitle').textContent;
+  document.getElementById('minutesTopic').value = document.getElementById('minutesDetailTopic').classList.contains('empty')
+    ? '' : document.getElementById('minutesDetailTopic').textContent;
+  document.getElementById('minutesDecision').value = document.getElementById('minutesDetailDecision').classList.contains('empty')
+    ? '' : document.getElementById('minutesDetailDecision').textContent;
+  // 次回予定日は空にしておく（新たに入力する場合のみ）
+  document.getElementById('minutesNextDate').value = '';
   openModal('minutesModal');
 }
 
@@ -1227,6 +1385,9 @@ async function submitMinutes() {
   if (data.success) {
     showToast(data.childCreated ? '保存しました（次回の議事録を作成しました）' : '保存しました');
     closeModal('minutesModal');
+    // 詳細画面の内容を更新して再表示
+    await openMinutesDetail(activeMinutesSheetName);
+    // 一覧も更新
     loadMinutesList();
   }
 }
