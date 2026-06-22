@@ -231,7 +231,11 @@
   }
   .btn-complete:active {
     transform: scale(0.95);
-    background: #1e3a22; /* 押した瞬間に濃い緑に */
+    background: #1e3a22;
+  }
+  .btn-complete.btn-pressed {
+    transform: scale(0.95) !important;
+    background: #1e3a22 !important;
   }
   .btn-secondary {
     padding: 9px 14px;
@@ -246,7 +250,11 @@
   }
   .btn-secondary:active {
     transform: scale(0.95);
-    background: #d9d2c4; /* 押した瞬間に少し濃く */
+    background: #d9d2c4;
+  }
+  .btn-secondary.btn-pressed {
+    transform: scale(0.95) !important;
+    background: #d9d2c4 !important;
   }
   /* 完了済みカードのスタイル（即時フィードバック用） */
   .task-card.completing {
@@ -872,15 +880,16 @@ function renderTaskCard(t, opts) {
   const assigneeBadge = (opts.owner && opts.owner !== currentStaffName) ? '<span class="badge assignee">' + escapeHtml(opts.owner) + '</span>' : '';
   const categoryBadge = t.category ? '<span class="badge">' + escapeHtml(t.category) + '</span>' : '';
 
+  // taskIdとownerをdata属性で持たせる（onclick内でシングルクォートが壊れる問題を防ぐ）
   let actions = '';
   if (opts.showComplete) {
-    actions += '<button class="btn-complete" onclick="completeTask(\'' + t.id + '\', \'' + opts.owner + '\', this)">完了にする</button>';
+    actions += '<button class="btn-complete" data-task-id="' + escapeHtml(t.id) + '" data-owner="' + escapeHtml(opts.owner) + '" onclick="completeTaskFromButton(this)">完了にする</button>';
   }
   if (opts.showEdit) {
-    actions += '<button class="btn-secondary" onclick="openEditTaskModal(\'' + t.id + '\')">編集</button>';
+    actions += '<button class="btn-secondary" data-task-id="' + escapeHtml(t.id) + '" onclick="openEditTaskModal(this.dataset.taskId)">編集</button>';
   }
   if (opts.showComment) {
-    actions += '<button class="btn-secondary" onclick="openCommentModal(\'' + t.id + '\', \'' + escapeHtml(t.taskName).replace(/'/g, "\\'") + '\')">コメント</button>';
+    actions += '<button class="btn-secondary" data-task-id="' + escapeHtml(t.id) + '" data-task-name="' + escapeHtml(t.taskName) + '" onclick="openCommentModal(this.dataset.taskId, this.dataset.taskName)">コメント</button>';
   }
 
   const latestComment = (opts.showComment && t.latestComment)
@@ -905,16 +914,33 @@ function escapeHtml(str) {
 // ------------------------------------------------------------
 // タスク完了
 // ------------------------------------------------------------
+
+// ボタンのtouchstart/mousedownで即座に色を変える（スマホでも確実に反応）
+document.addEventListener('touchstart', function(e) {
+  const btn = e.target.closest('.btn-complete, .btn-secondary, .btn-primary, .btn-cancel, .staff-btn, .fab');
+  if (btn) {
+    btn.classList.add('btn-pressed');
+    setTimeout(function() { btn.classList.remove('btn-pressed'); }, 200);
+  }
+}, { passive: true });
+
+// btn-pressedクラスのスタイルはCSSで定義済み（後述）
+function completeTaskFromButton(buttonEl) {
+  const taskId = buttonEl.dataset.taskId;
+  const ownerName = buttonEl.dataset.owner;
+  completeTask(taskId, ownerName, buttonEl);
+}
+
 async function completeTask(taskId, ownerName, buttonEl) {
   if (!confirm('このタスクを完了にしますか？')) return;
 
-  // ① ボタンを押した瞬間にカードを即時グレーアウト（APIの応答を待たない）
+  // ① 押した瞬間にカードを即時グレーアウト（APIの応答を待たない）
+  var card = null;
   if (buttonEl) {
-    const card = buttonEl.closest('.task-card');
+    card = buttonEl.closest('.task-card');
     if (card) {
       card.classList.add('completing');
-      // 完了ボタンだけ消す（コメント・編集ボタンは残す）
-      buttonEl.style.display = 'none';
+      buttonEl.style.display = 'none'; // 完了ボタンだけ消す
     }
   }
 
@@ -922,16 +948,29 @@ async function completeTask(taskId, ownerName, buttonEl) {
   const data = await callApi('completeTask', { staffName: ownerName, taskId: taskId });
   if (data.success) {
     showToast('完了しました ✓');
+    // オープン業務タブも更新（自分のタスクから完了した場合もオープン業務に反映）
+    // 現在のタブがmytasksでもopenでも、両方のデータを更新する
+    if (currentTab === 'mytasks') {
+      // オープン業務の表示キャッシュを無効化（次回タブ切替時に最新データを取得）
+      _openTasksDirty = true;
+    } else if (currentTab === 'open') {
+      // 自分のタスクの表示キャッシュを無効化
+      _myTasksDirty = true;
+    } else if (currentTab === 'home') {
+      _openTasksDirty = true;
+      _myTasksDirty = true;
+    }
   } else {
     // 失敗した場合はグレーアウトを戻す
-    if (buttonEl) {
-      const card = buttonEl.closest('.task-card');
-      if (card) card.classList.remove('completing');
-      buttonEl.style.display = '';
-    }
+    if (card) card.classList.remove('completing');
+    if (buttonEl) buttonEl.style.display = '';
     showToast('エラーが発生しました。もう一度試してください');
   }
 }
+
+// タブ切替時に「要更新」フラグが立っていれば再取得するための変数
+var _openTasksDirty = false;
+var _myTasksDirty = false;
 
 // ------------------------------------------------------------
 // タスク追加・編集モーダル
