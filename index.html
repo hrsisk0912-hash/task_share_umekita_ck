@@ -176,6 +176,57 @@
   }
   .section-title:first-child { margin-top: 0; }
 
+  /* ===== オープン業務：スタッフチップ ===== */
+  .staff-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 4px 0 12px;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 16px;
+  }
+  .staff-chip {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--card-bg);
+    border: 1.5px solid var(--rule);
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .staff-chip:active, .staff-chip.btn-pressed { background: var(--highlight); border-color: var(--accent); }
+  .staff-chip .chip-count {
+    background: var(--accent);
+    color: white;
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  /* スタッフ別セクション見出し */
+  .staff-section-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 20px 0 8px;
+    padding-left: 10px;
+    border-left: 3px solid var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .staff-section-title .count-badge {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .staff-section-title:first-child { margin-top: 0; }
+
   .task-card {
     background: var(--card-bg);
     border: 1px solid var(--rule);
@@ -828,9 +879,59 @@ async function loadOpenTasks() {
   const el = document.getElementById('openTasksList');
   if (!data.success) return;
 
-  el.innerHTML = data.tasks.length > 0
-    ? data.tasks.map(function (t) { return renderTaskCard(t, { owner: t.assignee, showComplete: (t.assignee === currentStaffName), showComment: true }); }).join('')
-    : '<div class="empty-state">共有されているタスクはありません</div>';
+  if (!data.tasks || data.tasks.length === 0) {
+    el.innerHTML = '<div class="empty-state">共有されているタスクはありません</div>';
+    return;
+  }
+
+  // スタッフ別にグループ化
+  const groups = {};
+  const order = []; // 表示順（最初に出てきた順）
+  data.tasks.forEach(function (t) {
+    const name = t.assignee || '未割当';
+    if (!groups[name]) {
+      groups[name] = [];
+      order.push(name);
+    }
+    groups[name].push(t);
+  });
+
+  // スタッフチップ（横並び・件数付き）
+  const chips = order.map(function (name) {
+    const count = groups[name].length;
+    return '<button class="staff-chip" onclick="scrollToStaffSection(\'' + escapeHtml(name) + '\')">' +
+      escapeHtml(name) +
+      '<span class="chip-count">' + count + '</span>' +
+    '</button>';
+  }).join('');
+
+  // スタッフ別セクション
+  const sections = order.map(function (name) {
+    const tasks = groups[name];
+    const cards = tasks.map(function (t) {
+      return renderTaskCard(t, {
+        owner: t.assignee,
+        showComplete: (t.assignee === currentStaffName),
+        showComment: true,
+      });
+    }).join('');
+    return '<div class="staff-section" id="staff-section-' + escapeHtml(name) + '">' +
+      '<div class="staff-section-title">' +
+        escapeHtml(name) +
+        '<span class="count-badge">（' + tasks.length + '件）</span>' +
+      '</div>' +
+      cards +
+    '</div>';
+  }).join('');
+
+  el.innerHTML =
+    '<div class="staff-chips">' + chips + '</div>' +
+    sections;
+}
+
+function scrollToStaffSection(name) {
+  const el = document.getElementById('staff-section-' + name);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ------------------------------------------------------------
