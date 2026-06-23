@@ -233,15 +233,57 @@
     border-radius: 12px;
     padding: 12px 14px;
     margin-bottom: 10px;
+    transition: box-shadow .15s;
   }
   .task-card-top {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     gap: 8px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
   }
+  .task-card-top:active { opacity: 0.7; }
   .task-name { font-size: 15px; font-weight: 600; flex: 1; }
   .task-name.done { text-decoration: line-through; color: var(--muted); }
+
+  /* アコーディオン：展開トグルアイコン */
+  .task-toggle {
+    font-size: 13px;
+    color: var(--muted);
+    transition: transform .2s;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .task-card.expanded .task-toggle { transform: rotate(180deg); }
+
+  /* アコーディオン：展開エリア */
+  .task-expand {
+    display: none;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--rule);
+  }
+  .task-card.expanded .task-expand { display: block; }
+
+  .task-memo {
+    font-size: 13px;
+    color: var(--ink);
+    line-height: 1.7;
+    white-space: pre-wrap;
+    background: var(--highlight);
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 10px;
+  }
+  .task-memo-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    letter-spacing: .05em;
+    margin-bottom: 4px;
+  }
   .task-meta {
     display: flex;
     flex-wrap: wrap;
@@ -1096,7 +1138,7 @@ function renderTaskCard(t, opts) {
   const assigneeBadge = (opts.owner && opts.owner !== currentStaffName) ? '<span class="badge assignee">' + escapeHtml(opts.owner) + '</span>' : '';
   const categoryBadge = t.category ? '<span class="badge">' + escapeHtml(t.category) + '</span>' : '';
 
-  // taskIdとownerをdata属性で持たせる（onclick内でシングルクォートが壊れる問題を防ぐ）
+  // ボタン類（展開エリアに移動）
   let actions = '';
   if (opts.showComplete) {
     actions += '<button class="btn-complete" data-task-id="' + escapeHtml(t.id) + '" data-owner="' + escapeHtml(opts.owner) + '" onclick="completeTaskFromButton(this)">完了にする</button>';
@@ -1108,16 +1150,41 @@ function renderTaskCard(t, opts) {
     actions += '<button class="btn-secondary" data-task-id="' + escapeHtml(t.id) + '" data-task-name="' + escapeHtml(t.taskName) + '" onclick="openCommentModal(this.dataset.taskId, this.dataset.taskName)">コメント</button>';
   }
 
+  // メモ（あれば展開エリアに表示）
+  const memoHtml = t.memo
+    ? '<div class="task-memo-label">メモ</div><div class="task-memo">' + escapeHtml(t.memo) + '</div>'
+    : '';
+
+  // 最新コメント（あれば展開エリアに表示）
   const latestComment = (opts.showComment && t.latestComment)
     ? '<div class="latest-comment">💬 ' + escapeHtml(t.latestComment) + '</div>'
     : '';
 
+  // メモ・コメント・アクションが何もない場合はトグル不要
+  const hasExpand = t.memo || (opts.showComment && t.latestComment) || actions;
+  const toggleIcon = hasExpand ? '<span class="task-toggle">⌄</span>' : '';
+  const expandArea = hasExpand
+    ? '<div class="task-expand">' +
+        memoHtml +
+        latestComment +
+        (actions ? '<div class="task-actions">' + actions + '</div>' : '') +
+      '</div>'
+    : '';
+  const onclickAttr = hasExpand ? ' onclick="toggleTaskCard(this)"' : '';
+
   return '<div class="task-card">' +
-    '<div class="task-card-top"><div class="task-name">' + escapeHtml(t.taskName) + '</div></div>' +
+    '<div class="task-card-top"' + onclickAttr + '>' +
+      '<div class="task-name">' + escapeHtml(t.taskName) + '</div>' +
+      toggleIcon +
+    '</div>' +
     '<div class="task-meta">' + categoryBadge + priorityBadge + deadlineBadge + assigneeBadge + '</div>' +
-    latestComment +
-    (actions ? '<div class="task-actions">' + actions + '</div>' : '') +
+    expandArea +
   '</div>';
+}
+
+function toggleTaskCard(headerEl) {
+  const card = headerEl.closest('.task-card');
+  if (card) card.classList.toggle('expanded');
 }
 
 function escapeHtml(str) {
