@@ -494,6 +494,24 @@
     padding: 12px 14px;
     margin-bottom: 10px;
     cursor: pointer;
+    transition: background .15s, transform .1s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .minutes-item:active,
+  .minutes-item.btn-pressed {
+    background: var(--highlight);
+    transform: scale(0.98);
+    border-color: var(--accent);
+  }
+  .minutes-item.loading {
+    opacity: 0.6;
+    pointer-events: none; /* 連打防止 */
+  }
+  .minutes-item.loading .date::after {
+    content: '　読み込み中...';
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--muted);
   }
   .minutes-item .date { font-size: 15px; font-weight: 700; }
   .minutes-item .next { font-size: 12px; color: var(--muted); margin-top: 4px; }
@@ -1382,7 +1400,7 @@ async function loadMinutesList() {
 
   el.innerHTML = data.minutesList.length > 0
     ? data.minutesList.map(function (m) {
-        return '<div class="minutes-item" data-sheet-name="' + escapeHtml(m.sheetName) + '" onclick="openMinutesDetail(this.dataset.sheetName)">' +
+        return '<div class="minutes-item" data-sheet-name="' + escapeHtml(m.sheetName) + '" onclick="openMinutesDetail(this.dataset.sheetName, this)">' +
           '<div class="date">' + escapeHtml(m.heldDate || '') + ' の議事録</div>' +
           (m.author ? '<div class="next">記入者：' + escapeHtml(m.author) + '</div>' : '') +
           (m.nextDate ? '<div class="next">次回予定：' + escapeHtml(m.nextDate) + '</div>' : '<div class="next">次回未定</div>') +
@@ -1391,8 +1409,19 @@ async function loadMinutesList() {
     : '<div class="empty-state">議事録はまだありません</div>';
 }
 
-async function openMinutesDetail(sheetName) {
+async function openMinutesDetail(sheetName, clickedEl) {
+  // タップフィードバック：押した瞬間にローディング状態にする
+  if (clickedEl) {
+    clickedEl.classList.add('loading');
+  }
+
   const data = await callApi('getMinutesDetail', { sheetName: sheetName });
+
+  // ローディング解除
+  if (clickedEl) {
+    clickedEl.classList.remove('loading');
+  }
+
   if (!data.success) { showToast(data.error || '取得に失敗しました'); return; }
 
   activeMinutesSheetName = sheetName;
