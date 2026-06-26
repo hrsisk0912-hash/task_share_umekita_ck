@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>タスク共有 | 梅北セントラルキッチン</title>
+<title>タスク共有 | 梅北店</title>
 <style>
   :root {
     --ink: #1a1209;
@@ -763,6 +763,10 @@
   <div class="modal-sheet">
     <div class="modal-title" id="minutesModalTitle">議事録</div>
     <div class="form-group">
+      <label>記入者</label>
+      <select id="minutesAuthor"></select>
+    </div>
+    <div class="form-group">
       <label>議題</label>
       <textarea id="minutesTopic" style="min-height:120px;"></textarea>
     </div>
@@ -792,6 +796,10 @@
   </div>
   <div class="detail-body">
     <div class="detail-section">
+      <div class="detail-section-label">記入者</div>
+      <div class="detail-section-content" id="minutesDetailAuthor"></div>
+    </div>
+    <div class="detail-section">
       <div class="detail-section-label">議題</div>
       <div class="detail-section-content" id="minutesDetailTopic"></div>
     </div>
@@ -819,6 +827,7 @@ const STORAGE_KEY_STAFF_NAME = 'tasksShareApp_staffName';
 
 let currentStaffName = null;
 let currentTab = 'home';
+let staffListCache = []; // スタッフ一覧（議事録記入者プルダウン等で再利用）
 let settingsCache = null; // カテゴリ・ステータス・優先度マスタ（ログイン後に1回取得しキャッシュ）
 let editingTaskId = null; // タスク編集モーダルで「編集中か新規か」を判定するためのフラグ
 let editingTaskOwner = null; // 編集中タスクの所有者シート名（自分のタスクのみ編集可）
@@ -897,6 +906,7 @@ async function loadStaffList(callback) {
   container.innerHTML = '';
 
   if (data.success && data.staff && data.staff.length > 0) {
+    staffListCache = data.staff; // キャッシュして議事録記入者プルダウン等で再利用
     data.staff.forEach(function (name) {
       const btn = document.createElement('button');
       btn.className = 'staff-btn';
@@ -905,6 +915,7 @@ async function loadStaffList(callback) {
       container.appendChild(btn);
     });
   } else {
+    staffListCache = [];
     container.innerHTML = '<div class="empty-state">スタッフが登録されていません。下から追加してください</div>';
   }
 
@@ -1373,21 +1384,29 @@ async function loadMinutesList() {
     ? data.minutesList.map(function (m) {
         return '<div class="minutes-item" data-sheet-name="' + escapeHtml(m.sheetName) + '" onclick="openMinutesDetail(this.dataset.sheetName)">' +
           '<div class="date">' + escapeHtml(m.heldDate || '') + ' の議事録</div>' +
+          (m.author ? '<div class="next">記入者：' + escapeHtml(m.author) + '</div>' : '') +
           (m.nextDate ? '<div class="next">次回予定：' + escapeHtml(m.nextDate) + '</div>' : '<div class="next">次回未定</div>') +
         '</div>';
       }).join('')
     : '<div class="empty-state">議事録はまだありません</div>';
 }
 
-// 議事録詳細を「閲覧モード」で全画面表示する
 async function openMinutesDetail(sheetName) {
   const data = await callApi('getMinutesDetail', { sheetName: sheetName });
   if (!data.success) { showToast(data.error || '取得に失敗しました'); return; }
 
   activeMinutesSheetName = sheetName;
-
-  // 詳細画面のタイトル
   document.getElementById('minutesDetailTitle').textContent = data.title || sheetName;
+
+  // 記入者
+  const authorEl = document.getElementById('minutesDetailAuthor');
+  if (data.author) {
+    authorEl.textContent = data.author;
+    authorEl.classList.remove('empty');
+  } else {
+    authorEl.textContent = '（未記入）';
+    authorEl.classList.add('empty');
+  }
 
   // 議題
   const topicEl = document.getElementById('minutesDetailTopic');
@@ -1417,31 +1436,46 @@ async function openMinutesDetail(sheetName) {
     nextDateEl.innerHTML = '<span class="detail-next-date" style="color:var(--muted)">未定</span>';
   }
 
-  // 全画面の詳細画面を表示
   document.getElementById('minutesDetailScreen').classList.add('active');
   document.getElementById('minutesDetailScreen').scrollTop = 0;
 }
 
-// 詳細閲覧画面を閉じて議事録一覧に戻る
 function closeMinutesDetail() {
   document.getElementById('minutesDetailScreen').classList.remove('active');
 }
 
-// 詳細閲覧画面の「編集」ボタンから編集モーダルを開く
 function openMinutesEditModal() {
-  // 編集モーダルに現在の詳細内容をセット
   document.getElementById('minutesModalTitle').textContent = document.getElementById('minutesDetailTitle').textContent;
+
+  // 記入者プルダウンにスタッフ一覧をセット（キャッシュ済みデータを使用）
+  const authorSelect = document.getElementById('minutesAuthor');
+  authorSelect.innerHTML = '<option value="">（選択してください）</option>';
+  staffListCache.forEach(function (name) {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    authorSelect.appendChild(opt);
+  });
+  // 現在の記入者があれば選択状態にする
+  const currentAuthor = document.getElementById('minutesDetailAuthor').textContent;
+  if (currentAuthor && !document.getElementById('minutesDetailAuthor').classList.contains('empty')) {
+    authorSelect.value = currentAuthor;
+  } else {
+    // ログイン中の自分をデフォルト選択
+    authorSelect.value = currentStaffName || '';
+  }
+
   document.getElementById('minutesTopic').value = document.getElementById('minutesDetailTopic').classList.contains('empty')
     ? '' : document.getElementById('minutesDetailTopic').textContent;
   document.getElementById('minutesDecision').value = document.getElementById('minutesDetailDecision').classList.contains('empty')
     ? '' : document.getElementById('minutesDetailDecision').textContent;
-  // 次回予定日は空にしておく（新たに入力する場合のみ）
   document.getElementById('minutesNextDate').value = '';
   openModal('minutesModal');
 }
 
 async function submitMinutes() {
   const fields = {
+    author: document.getElementById('minutesAuthor').value,
     topic: document.getElementById('minutesTopic').value,
     decision: document.getElementById('minutesDecision').value,
   };
@@ -1452,9 +1486,7 @@ async function submitMinutes() {
   if (data.success) {
     showToast(data.childCreated ? '保存しました（次回の議事録を作成しました）' : '保存しました');
     closeModal('minutesModal');
-    // 詳細画面の内容を更新して再表示
     await openMinutesDetail(activeMinutesSheetName);
-    // 一覧も更新
     loadMinutesList();
   }
 }
