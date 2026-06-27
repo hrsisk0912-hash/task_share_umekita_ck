@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>タスク共有 | 梅北セントラルキッチン</title>
+<title>タスク共有 | 梅北店</title>
 <style>
   :root {
     --ink: #1a1209;
@@ -1427,6 +1427,8 @@ async function openMinutesDetail(sheetName, clickedEl) {
   activeMinutesSheetName = sheetName;
   document.getElementById('minutesDetailTitle').textContent = data.title || sheetName;
 
+  console.log('[minutesDetail] data:', JSON.stringify(data).substring(0, 300));
+
   // 記入者
   const authorEl = document.getElementById('minutesDetailAuthor');
   if (data.author) {
@@ -1487,6 +1489,7 @@ function openMinutesEditModal() {
   });
   // 現在の記入者があれば選択状態にする
   const currentAuthor = document.getElementById('minutesDetailAuthor').textContent;
+  console.log('[minutesEdit] currentAuthor:', currentAuthor, 'isEmpty:', document.getElementById('minutesDetailAuthor').classList.contains('empty'));
   if (currentAuthor && !document.getElementById('minutesDetailAuthor').classList.contains('empty')) {
     authorSelect.value = currentAuthor;
   } else {
@@ -1498,7 +1501,13 @@ function openMinutesEditModal() {
     ? '' : document.getElementById('minutesDetailTopic').textContent;
   document.getElementById('minutesDecision').value = document.getElementById('minutesDetailDecision').classList.contains('empty')
     ? '' : document.getElementById('minutesDetailDecision').textContent;
-  document.getElementById('minutesNextDate').value = '';
+
+  // 次回予定日：保存済みの値を初期表示する（空欄ではなく現在の値をセット）
+  const nextDateEl = document.getElementById('minutesDetailNextDate');
+  const nextDateSpan = nextDateEl ? nextDateEl.querySelector('.detail-next-date') : null;
+  const currentNextDate = nextDateSpan && !nextDateSpan.style.color ? nextDateSpan.textContent.replace('📅 ', '').trim() : '';
+  document.getElementById('minutesNextDate').value = currentNextDate || '';
+
   openModal('minutesModal');
 }
 
