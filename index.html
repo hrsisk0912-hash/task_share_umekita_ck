@@ -2,1543 +2,1145 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>タスク共有 | 梅北セントラルキッチン</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>タイムカード</title>
 <style>
   :root {
-    --ink: #1a1209;
-    --paper: #faf7f2;
-    --accent: #2f5233;
-    --accent-light: #4a7a51;
-    --rule: #d9d2c4;
-    --highlight: #eef3ec;
-    --muted: #7a6e60;
-    --danger: #b3402a;
-    --warn: #b3812a;
-    --ok: #2f5233;
-    --card-bg: #ffffff;
+    --bg:#0F0F0F; --surface:#1A1A1A; --surface2:#242424; --surface3:#2E2E2E;
+    --border:#333; --border2:#444;
+    --primary:#4F8EF7; --primary2:#7B5BF7; --primary-dim:rgba(79,142,247,.15);
+    --green:#34C759; --yellow:#FF9F0A; --red:#FF3B30; --blue:#0A84FF;
+    --text:#F2F2F7; --text2:#AEAEB2; --text3:#636366;
+    --radius: 14px;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  html, body { height: 100%; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
-    background: var(--paper);
-    color: var(--ink);
-    line-height: 1.6;
-    font-size: 15px;
-    overscroll-behavior-y: none;
+    margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: var(--bg); color: var(--text); padding-bottom: 76px;
   }
 
-  /* ===== ログイン画面 ===== */
-  #loginScreen {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
+  /* ---------- グローバルローディングバー ---------- */
+  #loadingBar {
+    position: fixed; top: 0; left: 0; height: 3px; width: 100%; z-index: 100;
+    background: transparent; overflow: hidden; opacity: 0; transition: opacity .2s;
   }
-  .site-badge {
-    display: inline-block;
-    background: var(--accent);
-    color: white;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: .04em;
-    padding: 6px 16px;
-    border-radius: 20px;
-    margin-bottom: 14px;
+  #loadingBar.active { opacity: 1; }
+  #loadingBar .sweep {
+    position: absolute; top: 0; left: -30%; height: 100%; width: 30%;
+    background: linear-gradient(90deg, transparent, var(--primary), var(--primary2), transparent);
+    animation: sweep 1s linear infinite;
   }
-  #loginScreen h1 {
-    font-size: 20px;
-    font-weight: 700;
-    margin-bottom: 4px;
-    letter-spacing: .03em;
-  }
-  #loginScreen .sub {
-    font-size: 13px;
-    color: var(--muted);
-    margin-bottom: 32px;
-  }
-  .staff-list {
-    width: 100%;
-    max-width: 360px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-bottom: 20px;
-  }
-  .staff-btn {
-    width: 100%;
-    padding: 16px;
-    background: var(--card-bg);
-    border: 1px solid var(--rule);
-    border-radius: 12px;
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--ink);
-    text-align: left;
-    cursor: pointer;
-    transition: background .15s, transform .1s;
-  }
-  .staff-btn:active { transform: scale(0.98); background: var(--highlight); }
-  .add-staff-row {
-    width: 100%;
-    max-width: 360px;
-    display: flex;
-    gap: 8px;
-  }
-  .add-staff-row input {
-    flex: 1;
-    padding: 14px;
-    border: 1px solid var(--rule);
-    border-radius: 10px;
-    font-size: 15px;
-  }
-  .add-staff-row button {
-    padding: 14px 18px;
-    background: var(--accent);
-    color: white;
-    border: none;
-    border-radius: 10px;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
+  @keyframes sweep {
+    0% { left: -30%; }
+    100% { left: 100%; }
   }
 
-  /* ===== アプリ本体 ===== */
-  #appScreen { display: none; min-height: 100vh; padding-bottom: 72px; }
-  #appScreen.active { display: block; }
+  /* ---------- スピナー ---------- */
+  .spinner {
+    display: inline-block; width: 16px; height: 16px; border-radius: 50%;
+    border: 2.5px solid rgba(255,255,255,.35); border-top-color: #fff;
+    animation: spin .7s linear infinite; vertical-align: middle;
+  }
+  .spinner.dark { border-color: rgba(0,0,0,.15); border-top-color: var(--primary); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  header {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 18px 16px 14px; position: sticky; top: 0; z-index: 10;
+  }
+  header h1 {
+    margin: 0; font-size: 17px; font-weight: 700;
+    background: linear-gradient(135deg, var(--primary), var(--primary2));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  header .sub { font-size: 12px; color: var(--text3); margin-top: 2px; }
+  .sync-wrap { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text3); margin-top: 4px; }
+  .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+  .sync-dot.syncing { background: var(--yellow); animation: pulse 1s infinite; }
+  .sync-dot.error { background: var(--red); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
 
-  .app-header {
-    position: sticky;
-    top: 0;
-    z-index: 50;
-    background: var(--ink);
-    color: var(--paper);
-    padding: 14px 16px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .app-header .title { font-size: 15px; font-weight: 700; letter-spacing: .03em; }
-  .header-site-name {
-    font-size: 11px;
-    color: rgba(250,247,242,0.65);
-    margin-top: 1px;
-  }
-  .app-header .user-chip {
-    font-size: 12px;
-    background: rgba(255,255,255,0.12);
-    padding: 5px 10px;
-    border-radius: 20px;
-    cursor: pointer;
-  }
+  main { padding: 14px; max-width: 520px; margin: 0 auto; }
+  .tab-page { display: none; }
+  .tab-page.active { display: block; }
 
-  .tab-panel { display: none; padding: 16px; }
-  .tab-panel.active { display: block; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px; margin-bottom: 12px;
+  }
+  .card h2 { font-size: 13px; margin: 0 0 10px; color: var(--text2); font-weight: 600; }
 
-  /* ===== ボトムナビ ===== */
-  .bottom-nav {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 50;
-    background: var(--card-bg);
-    border-top: 1px solid var(--rule);
-    display: flex;
-    padding: 6px 0 max(6px, env(safe-area-inset-bottom));
+  .clock-face-card {
+    text-align: center; background: var(--surface2);
+    padding: 22px 16px;
   }
-  .nav-btn {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-    padding: 6px 0;
-    background: none;
-    border: none;
-    color: var(--muted);
-    font-size: 10px;
-    cursor: pointer;
+  .clock-face {
+    font-size: 46px; font-weight: 800; color: #fff; letter-spacing: 1px;
+    font-variant-numeric: tabular-nums; line-height: 1.1;
   }
-  .nav-btn .icon { font-size: 20px; }
-  .nav-btn.active { color: var(--accent); font-weight: 700; }
+  .clock-date { font-size: 13px; color: var(--primary); margin-top: 6px; }
 
-  /* ===== 共通カード・リスト ===== */
-  .section-title {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--muted);
-    letter-spacing: .05em;
-    margin: 18px 0 8px;
-  }
-  .section-title:first-child { margin-top: 0; }
-
-  /* ===== オープン業務：スタッフチップ ===== */
-  .staff-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    padding: 4px 0 12px;
-    border-bottom: 1px solid var(--rule);
-    margin-bottom: 16px;
-  }
+  .staff-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .staff-chip {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    background: var(--card-bg);
-    border: 1.5px solid var(--rule);
-    border-radius: 20px;
-    padding: 6px 12px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all .15s;
-    -webkit-tap-highlight-color: transparent;
+    padding: 14px 6px; border-radius: 12px; border: 1.5px solid var(--border);
+    background: var(--surface2); text-align: center; font-size: 13px; font-weight: 600;
+    color: var(--text); transition: transform .1s ease, background .15s, border-color .15s, filter .1s;
   }
-  .staff-chip:active, .staff-chip.btn-pressed { background: var(--highlight); border-color: var(--accent); }
-  .staff-chip .chip-count {
-    background: var(--accent);
-    color: white;
-    border-radius: 10px;
-    padding: 1px 7px;
-    font-size: 11px;
-    font-weight: 700;
-  }
-  /* スタッフ別セクション見出し */
-  .staff-section-title {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--ink);
-    margin: 20px 0 8px;
-    padding-left: 10px;
-    border-left: 3px solid var(--accent);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .staff-section-title .count-badge {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--muted);
-  }
-  .staff-section-title:first-child { margin-top: 0; }
+  .staff-chip.selected { border-color: var(--primary); background: var(--primary-dim); }
+  .staff-chip.btn-pressed, .staff-chip:active { transform: scale(0.92); filter: brightness(0.85); }
+  .staff-chip .status-dot { display: block; font-size: 10px; color: var(--text3); margin-top: 4px; font-weight: 400; }
+  .staff-chip.working .status-dot { color: var(--green); }
 
-  .task-card {
-    background: var(--card-bg);
-    border: 1px solid var(--rule);
-    border-radius: 12px;
-    padding: 12px 14px;
-    margin-bottom: 10px;
-    transition: box-shadow .15s;
-  }
-  .task-card-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 8px;
-    cursor: pointer;
-    user-select: none;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .task-card-top:active { opacity: 0.7; }
-  .task-name { font-size: 15px; font-weight: 600; flex: 1; }
-  .task-name.done { text-decoration: line-through; color: var(--muted); }
+  .clock-status { text-align: center; margin: 18px 0; }
+  .clock-status .name { font-size: 18px; font-weight: 700; }
+  .clock-status .state { font-size: 13px; color: var(--text2); margin-top: 4px; }
 
-  /* アコーディオン：展開トグルアイコン */
-  .task-toggle {
-    font-size: 13px;
-    color: var(--muted);
-    transition: transform .2s;
-    flex-shrink: 0;
-    margin-top: 2px;
-  }
-  .task-card.expanded .task-toggle { transform: rotate(180deg); }
+  .btn { border: none; border-radius: 12px; padding: 16px; font-size: 16px; font-weight: 700;
+    width: 100%; cursor: pointer; transition: transform .1s ease, filter .1s, box-shadow .1s;
+    display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .btn.btn-pressed, .btn:active:not(:disabled) { transform: scale(0.94); filter: brightness(0.8); box-shadow: inset 0 2px 6px rgba(0,0,0,.25); }
+  .btn-in { background: var(--green); color: #fff; }
+  .btn-out { background: var(--red); color: #fff; }
+  .btn-secondary { background: var(--surface2); border: 1.5px solid var(--border2); color: var(--text); }
+  .btn-small { padding: 8px 14px; font-size: 13px; border-radius: 10px; width: auto; }
+  .btn:disabled { opacity: 0.35; pointer-events: none; }
+  .btn.is-loading { pointer-events: none; opacity: 0.85; }
 
-  /* アコーディオン：展開エリア */
-  .task-expand {
-    display: none;
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px solid var(--rule);
-  }
-  .task-card.expanded .task-expand { display: block; }
+  .tappable { cursor: pointer; transition: transform .1s ease, filter .1s, background .12s; }
+  .tappable.btn-pressed, .tappable:active { transform: scale(0.97); filter: brightness(0.8); background: var(--surface3); }
 
-  .task-memo {
-    font-size: 13px;
-    color: var(--ink);
-    line-height: 1.7;
-    white-space: pre-wrap;
-    background: var(--highlight);
-    border-radius: 8px;
-    padding: 8px 10px;
-    margin-bottom: 10px;
-  }
-  .task-memo-label {
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--muted);
-    letter-spacing: .05em;
-    margin-bottom: 4px;
-  }
-  .task-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 8px;
-  }
-  .badge {
-    font-size: 11px;
-    padding: 3px 8px;
-    border-radius: 6px;
-    background: var(--highlight);
-    color: var(--accent);
-    white-space: nowrap;
-  }
-  .badge.priority-高 { background: #fbe9e5; color: var(--danger); }
-  .badge.priority-中 { background: #faf3e1; color: var(--warn); }
-  .badge.priority-低 { background: var(--highlight); color: var(--accent); }
-  .badge.deadline { background: #eef0fb; color: #354aa8; }
-  .badge.assignee { background: #f1eee8; color: var(--ink); }
+  .record-row { display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; border-radius: 8px; }
+  .record-row:last-child { border-bottom: none; }
+  .record-row .rname { font-weight: 600; color: var(--text); }
+  .record-row .rtime { color: var(--text2); }
+  .badge { font-size: 11px; padding: 3px 8px; border-radius: 20px; }
+  .badge.pending { background: rgba(255,159,10,.15); color: var(--yellow); }
+  .badge.approved { background: rgba(52,199,89,.15); color: var(--green); }
 
-  .task-actions {
-    display: flex;
-    gap: 8px;
-    margin-top: 10px;
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 4px; }
+  .field input, .field select {
+    width: 100%; padding: 10px; border: 1.5px solid var(--border); background: var(--surface2);
+    color: var(--text); border-radius: 8px; font-size: 14px; font-family: inherit;
   }
-  .btn-complete {
-    flex: 1;
-    padding: 9px;
-    background: var(--accent);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background .15s, transform .1s;
-    -webkit-tap-highlight-color: transparent;
+  .field input:focus, .field select:focus { outline: none; border-color: var(--primary); }
+
+  nav.tabbar {
+    position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface);
+    display: flex; border-top: 1px solid var(--border); z-index: 20;
   }
-  .btn-complete:active {
-    transform: scale(0.95);
-    background: #1e3a22;
+  nav.tabbar button {
+    flex: 1; border: none; background: none; padding: 10px 0 8px; font-size: 11px;
+    color: var(--text3); display: flex; flex-direction: column; align-items: center; gap: 2px;
+    transition: transform .1s ease, opacity .1s;
   }
-  .btn-complete.btn-pressed {
-    transform: scale(0.95) !important;
-    background: #1e3a22 !important;
-  }
-  .btn-secondary {
-    padding: 9px 14px;
-    background: var(--highlight);
-    color: var(--ink);
-    border: none;
-    border-radius: 8px;
-    font-size: 13px;
-    cursor: pointer;
-    transition: background .15s, transform .1s;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .btn-secondary:active {
-    transform: scale(0.95);
-    background: #d9d2c4;
-  }
-  .btn-secondary.btn-pressed {
-    transform: scale(0.95) !important;
-    background: #d9d2c4 !important;
-  }
-  .btn-primary.btn-pressed {
-    transform: scale(0.97) !important;
-    background: #1e3a22 !important;
-  }
-  /* 完了済みカードのスタイル（即時フィードバック用） */
-  .task-card.completing {
-    opacity: 0.55;
-    transition: opacity .3s;
-  }
-  .task-card.completing .task-name {
-    text-decoration: line-through;
-    color: var(--muted);
+  nav.tabbar button.btn-pressed, nav.tabbar button:active { transform: scale(0.88); opacity: 0.7; }
+  nav.tabbar button .icon { font-size: 20px; }
+  nav.tabbar button.active { color: var(--primary); font-weight: 700; }
+  .nav-badge {
+    display: inline-block; margin-left: 3px; background: var(--red); color: #fff;
+    font-size: 9px; font-weight: 700; border-radius: 10px; padding: 1px 5px; vertical-align: top;
   }
 
-  .latest-comment {
-    margin-top: 8px;
-    font-size: 12px;
-    color: var(--muted);
-    background: var(--highlight);
-    padding: 6px 10px;
-    border-radius: 8px;
-  }
-
-  .empty-state {
-    text-align: center;
-    padding: 48px 20px;
-    color: var(--muted);
-    font-size: 13px;
-  }
-
-  /* ===== FAB（タスク追加） ===== */
-  .fab {
-    position: fixed;
-    right: 16px;
-    bottom: 84px;
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    background: var(--accent);
-    color: white;
-    border: none;
-    font-size: 28px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    cursor: pointer;
-    z-index: 40;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .fab:active { transform: scale(0.95); }
-
-  /* ===== モーダル ===== */
   .modal-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.4);
-    z-index: 100;
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 30;
     align-items: flex-end;
   }
-  .modal-overlay.active { display: flex; }
+  .modal-overlay.open { display: flex; }
   .modal-sheet {
-    background: var(--paper);
-    width: 100%;
-    max-height: 88vh;
-    overflow-y: auto;
-    border-radius: 18px 18px 0 0;
-    padding: 20px;
-    animation: slideUp .2s ease;
+    background: var(--surface); border: 1px solid var(--border); width: 100%;
+    border-radius: 18px 18px 0 0; padding: 20px; max-height: 85vh; overflow-y: auto;
   }
-  @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-  .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 16px; }
-  .form-group { margin-bottom: 14px; }
-  .form-group label {
-    display: block;
-    font-size: 12px;
-    color: var(--muted);
-    margin-bottom: 6px;
-    font-weight: 600;
-  }
-  .form-group input,
-  .form-group select,
-  .form-group textarea {
-    width: 100%;
-    padding: 12px;
-    border: 1px solid var(--rule);
-    border-radius: 8px;
-    font-size: 15px;
-    font-family: inherit;
-    background: white;
-  }
-  .form-group textarea { min-height: 90px; resize: vertical; }
-  .form-row { display: flex; gap: 10px; }
-  .form-row .form-group { flex: 1; }
-  .modal-buttons { display: flex; gap: 10px; margin-top: 18px; }
-  .btn-primary {
-    flex: 1;
-    padding: 13px;
-    background: var(--accent);
-    color: white;
-    border: none;
-    border-radius: 10px;
-    font-size: 15px;
-    font-weight: 700;
-    cursor: pointer;
-  }
-  .btn-cancel {
-    padding: 13px 18px;
-    background: var(--highlight);
-    color: var(--ink);
-    border: none;
-    border-radius: 10px;
-    font-size: 15px;
-    cursor: pointer;
-  }
+  .modal-sheet h3 { margin-top: 0; color: var(--text); }
 
-  /* ===== コメント ===== */
-  .comment-list { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
-  .comment-item {
-    background: var(--highlight);
-    border-radius: 10px;
-    padding: 8px 12px;
+  .toast {
+    position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
+    background: var(--surface3); border: 1px solid var(--border2); color: #fff; padding: 10px 18px;
+    border-radius: 20px; font-size: 13px; opacity: 0; transition: opacity .3s; z-index: 40; pointer-events: none;
   }
-  .comment-item .meta { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
-  .comment-item .content { font-size: 14px; }
-  .comment-input-row { display: flex; gap: 8px; margin-top: 10px; }
-  .comment-input-row input { flex: 1; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 8px; }
-  .comment-input-row button {
-    padding: 10px 16px;
-    background: var(--accent);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-  }
+  .toast.show { opacity: 1; }
 
-  /* ===== 議事録 ===== */
-  .minutes-item {
-    background: var(--card-bg);
-    border: 1px solid var(--rule);
-    border-radius: 12px;
-    padding: 12px 14px;
-    margin-bottom: 10px;
-    cursor: pointer;
-    transition: background .15s, transform .1s;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .minutes-item:active,
-  .minutes-item.btn-pressed {
-    background: var(--highlight);
-    transform: scale(0.98);
-    border-color: var(--accent);
-  }
-  .minutes-item.loading {
-    opacity: 0.6;
-    pointer-events: none; /* 連打防止 */
-  }
-  .minutes-item.loading .date::after {
-    content: '　読み込み中...';
-    font-size: 12px;
-    font-weight: 400;
-    color: var(--muted);
-  }
-  .minutes-item .date { font-size: 15px; font-weight: 700; }
-  .minutes-item .next { font-size: 12px; color: var(--muted); margin-top: 4px; }
-
-  /* ===== 議事録詳細閲覧画面（全画面スライドイン） ===== */
-  #minutesDetailScreen {
-    display: none;
-    position: fixed;
-    inset: 0;
-    z-index: 60;
-    background: var(--paper);
-    overflow-y: auto;
-    animation: slideInRight .2s ease;
-  }
-  #minutesDetailScreen.active { display: block; }
-  @keyframes slideInRight {
-    from { transform: translateX(30px); opacity: 0; }
-    to   { transform: translateX(0); opacity: 1; }
-  }
-  .detail-header {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    background: var(--ink);
-    color: var(--paper);
-    padding: 14px 16px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .detail-header .back-btn {
-    background: none;
-    border: none;
-    color: var(--paper);
-    font-size: 20px;
-    cursor: pointer;
-    padding: 0 6px 0 0;
-    line-height: 1;
-  }
-  .detail-header .detail-title {
-    flex: 1;
-    font-size: 15px;
-    font-weight: 700;
-  }
-  .detail-header .edit-btn {
-    background: rgba(255,255,255,0.15);
-    border: none;
-    color: var(--paper);
-    font-size: 13px;
-    font-weight: 600;
-    padding: 7px 14px;
-    border-radius: 8px;
-    cursor: pointer;
-  }
-  .detail-body { padding: 20px 16px 40px; }
-  .detail-section {
-    margin-bottom: 24px;
-  }
-  .detail-section-label {
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--muted);
-    letter-spacing: .08em;
-    text-transform: uppercase;
-    margin-bottom: 8px;
-  }
-  .detail-section-content {
-    background: var(--card-bg);
-    border: 1px solid var(--rule);
-    border-radius: 12px;
-    padding: 14px 16px;
-    font-size: 15px;
-    line-height: 1.8;
-    white-space: pre-wrap;
-    min-height: 60px;
-    color: var(--ink);
-  }
-  .detail-section-content.empty {
-    color: var(--muted);
-    font-style: italic;
-  }
-  .detail-next-date {
-    display: inline-block;
-    background: var(--highlight);
-    color: var(--accent);
-    font-weight: 700;
-    font-size: 15px;
-    padding: 8px 16px;
-    border-radius: 10px;
-    border: 1px solid var(--rule);
-  }
-  #toast {
-    position: fixed;
-    bottom: 90px;
-    left: 50%;
-    transform: translateX(-50%) translateY(20px);
-    background: var(--ink);
-    color: white;
-    padding: 10px 20px;
-    border-radius: 24px;
-    font-size: 13px;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity .2s, transform .2s;
-    z-index: 200;
-    white-space: nowrap;
-  }
-  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-  .loading-spinner {
-    display: inline-block;
-    width: 24px;
-    height: 24px;
-    border: 3px solid var(--rule);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin .7s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .center-loading { display: flex; justify-content: center; padding: 40px 0; }
-
-  .refresh-btn {
-    background: none;
-    border: none;
-    color: var(--paper);
-    font-size: 18px;
-    cursor: pointer;
-    padding: 4px 8px;
-  }
+  .row-flex { display: flex; gap: 8px; }
+  .empty-state { text-align: center; color: var(--text3); font-size: 13px; padding: 20px 0; }
 </style>
 </head>
 <body>
 
-<!-- ===== ログイン画面 ===== -->
-<div id="loginScreen">
-  <div class="site-badge" id="siteBadge">読み込み中...</div>
-  <h1>タスク共有シート</h1>
-  <div class="sub">あなたの名前を選んでください</div>
-  <div class="staff-list" id="staffList">
-    <div class="center-loading"><div class="loading-spinner"></div></div>
-  </div>
-  <div class="add-staff-row">
-    <input type="text" id="newStaffName" placeholder="新しいスタッフの名前">
-    <button onclick="addStaff()">追加</button>
-  </div>
-</div>
+<div id="loadingBar"><div class="sweep"></div></div>
 
-<!-- ===== アプリ本体 ===== -->
-<div id="appScreen">
-  <div class="app-header">
-    <div>
-      <div class="title" id="headerTitle">ホーム</div>
-      <div class="header-site-name" id="headerSiteName"></div>
+<header>
+  <h1 id="storeName">タイムカード</h1>
+  <div class="sub">出退勤の打刻管理</div>
+  <div class="sync-wrap"><div class="sync-dot" id="syncDot"></div><span id="syncLabel">同期済み</span></div>
+</header>
+
+<main>
+
+  <!-- ==================== 打刻タブ ==================== -->
+  <section class="tab-page active" id="page-clock">
+    <div class="card clock-face-card">
+      <div class="clock-face" id="liveClock">--:--:--</div>
+      <div class="clock-date" id="liveClockDate">-</div>
     </div>
-    <div style="display:flex; align-items:center; gap:8px;">
-      <button class="refresh-btn" onclick="refreshCurrentTab()">↻</button>
-      <div class="user-chip" id="userChip" onclick="logout()"></div>
+
+    <div class="card">
+      <h2>スタッフを選択</h2>
+      <div class="staff-grid" id="staffGrid"></div>
     </div>
-  </div>
 
-  <!-- ホーム -->
-  <div class="tab-panel active" id="tab-home">
-    <div class="section-title">期限が近いタスク</div>
-    <div id="homeDueSoon"><div class="center-loading"><div class="loading-spinner"></div></div></div>
-    <div class="section-title">あなたの未完了タスク</div>
-    <div id="homeAllTasks"></div>
-  </div>
+    <div class="card">
+      <div class="clock-status">
+        <div class="name" id="selectedStaffName">未選択</div>
+        <div class="state" id="selectedStaffState">-</div>
+      </div>
+      <button class="btn btn-in" id="btnClockIn" disabled>出勤する</button>
+      <div style="height:8px"></div>
+      <button class="btn btn-out" id="btnClockOut" disabled>退勤する</button>
+    </div>
 
-  <!-- オープン業務 -->
-  <div class="tab-panel" id="tab-open">
-    <div id="openTasksList"><div class="center-loading"><div class="loading-spinner"></div></div></div>
-  </div>
+    <div class="card">
+      <h2>本日の打刻状況</h2>
+      <div id="todayList"><div class="empty-state">読み込み中...</div></div>
+    </div>
+  </section>
 
-  <!-- 自分のタスク -->
-  <div class="tab-panel" id="tab-mytasks">
-    <div id="myTasksList"><div class="center-loading"><div class="loading-spinner"></div></div></div>
-  </div>
+  <!-- ==================== 管理タブ ==================== -->
+  <section class="tab-page" id="page-admin">
+    <div class="card" id="alertCard" style="display:none; border-color: var(--yellow);">
+      <h2 style="color: var(--yellow);">⚠ 打刻漏れ</h2>
+      <div id="alertList"></div>
+    </div>
 
-  <!-- 議事録 -->
-  <div class="tab-panel" id="tab-minutes">
-    <div id="minutesList"><div class="center-loading"><div class="loading-spinner"></div></div></div>
-  </div>
+    <div class="card">
+      <h2>日付で確認</h2>
+      <div class="field">
+        <input type="date" id="adminDate">
+      </div>
+      <div id="adminList"><div class="empty-state">日付を選択してください</div></div>
+    </div>
 
-  <!-- 完了履歴 -->
-  <div class="tab-panel" id="tab-done">
-    <div id="doneTasksList"><div class="center-loading"><div class="loading-spinner"></div></div></div>
-  </div>
+    <div class="card">
+      <h2>月次出力</h2>
+      <div class="field">
+        <label>対象月（設定した締め日に応じた期間で集計されます）</label>
+        <input type="month" id="summaryMonth">
+      </div>
+      <div class="row-flex">
+        <button class="btn btn-secondary btn-small" id="btnAggregate">集計する</button>
+        <button class="btn btn-secondary btn-small" id="btnExportCsv">CSV出力</button>
+      </div>
+      <div id="summaryList" style="margin-top:12px;"></div>
+    </div>
 
-  <button class="fab" id="fabAddTask" onclick="openAddTaskModal()">＋</button>
+    <div class="card">
+      <h2>有給休暇</h2>
+      <button class="btn btn-secondary btn-small" id="btnCheckLegalLeave" style="margin-bottom:10px;">法定基準を確認</button>
+      <div id="leaveList"></div>
+    </div>
+  </section>
 
-  <div class="bottom-nav">
-    <button class="nav-btn active" data-tab="home" onclick="switchTab('home')">
-      <span class="icon">🏠</span><span>ホーム</span>
-    </button>
-    <button class="nav-btn" data-tab="open" onclick="switchTab('open')">
-      <span class="icon">📋</span><span>オープン業務</span>
-    </button>
-    <button class="nav-btn" data-tab="mytasks" onclick="switchTab('mytasks')">
-      <span class="icon">👤</span><span>自分のタスク</span>
-    </button>
-    <button class="nav-btn" data-tab="minutes" onclick="switchTab('minutes')">
-      <span class="icon">📝</span><span>議事録</span>
-    </button>
-    <button class="nav-btn" data-tab="done" onclick="switchTab('done')">
-      <span class="icon">✅</span><span>完了履歴</span>
-    </button>
-  </div>
-</div>
+  <!-- ==================== 設定タブ ==================== -->
+  <section class="tab-page" id="page-settings">
+    <div class="card">
+      <h2>店舗設定</h2>
+      <div class="field"><label>店舗名</label><input type="text" id="cfgStoreName"></div>
+      <div class="field"><label>標準休憩分</label><input type="number" id="cfgBreakMin"></div>
+      <div class="field">
+        <label>給与計算の締め日（集計期間に反映されます）</label>
+        <select id="cfgClosingDay">
+          <option value="末日">末日締め（暦月そのまま集計）</option>
+          <option value="20">20日締め</option>
+          <option value="25">25日締め</option>
+          <option value="15">15日締め</option>
+          <option value="10">10日締め</option>
+          <option value="5">5日締め</option>
+        </select>
+      </div>
+      <div class="field"><label>給与支払日（記録用・保存期限の確認に使用）</label><input type="text" id="cfgPayDay" placeholder="例：翌月25日"></div>
+      <div class="field">
+        <label>法定休日（休日労働の判定に使用）</label>
+        <select id="cfgLegalHoliday">
+          <option value="日">日曜日</option>
+          <option value="月">月曜日</option>
+          <option value="火">火曜日</option>
+          <option value="水">水曜日</option>
+          <option value="木">木曜日</option>
+          <option value="金">金曜日</option>
+          <option value="土">土曜日</option>
+        </select>
+      </div>
+      <div class="field"><label>所定労働時間（分／時間外判定の基準）</label><input type="number" id="cfgStandardMin" placeholder="例：480（8時間）"></div>
+      <div class="field">
+        <label>Sales Manager連携</label>
+        <select id="cfgLinkMode">
+          <option value="standalone">連携しない（standalone）</option>
+          <option value="linked">連携する（linked）</option>
+        </select>
+      </div>
+      <div class="field"><label>Sales Manager GAS URL</label><input type="text" id="cfgLinkUrl" placeholder="https://script.google.com/macros/s/.../exec"></div>
+      <button class="btn btn-in" id="btnSaveConfig">設定を保存</button>
+    </div>
 
-<!-- ===== モーダル：タスク追加/編集 ===== -->
-<div class="modal-overlay" id="taskModal">
+    <div class="card">
+      <h2>🔒 管理者PINの変更</h2>
+      <div class="field"><label>現在のPIN</label><input type="password" inputmode="numeric" id="cfgCurrentPin" placeholder="現在のPIN"></div>
+      <div class="field"><label>新しいPIN（4桁以上）</label><input type="password" inputmode="numeric" id="cfgNewPin" placeholder="新しいPIN"></div>
+      <button class="btn btn-secondary" id="btnChangePin">PINを変更</button>
+    </div>
+
+    <div class="card">
+      <h2>スタッフマスタ</h2>
+      <div id="staffList"></div>
+      <button class="btn btn-secondary" id="btnAddStaff" style="margin-top:10px;">＋ スタッフを追加</button>
+    </div>
+  </section>
+
+</main>
+
+<nav class="tabbar">
+  <button class="active" data-tab="clock"><span class="icon">⏱</span>打刻</button>
+  <button data-tab="admin"><span class="icon">📋</span>管理</button>
+  <button data-tab="settings"><span class="icon">⚙</span>設定</button>
+</nav>
+
+<!-- 打刻修正モーダル -->
+<div class="modal-overlay" id="editModal">
   <div class="modal-sheet">
-    <div class="modal-title" id="taskModalTitle">タスクを追加</div>
-    <div class="form-group">
-      <label>カテゴリ</label>
-      <select id="taskCategory"></select>
+    <h3>打刻を修正</h3>
+    <div class="field"><label>氏名</label><div id="editStaffName" style="font-weight:700;"></div></div>
+    <div class="field">
+      <label>ステータス</label>
+      <div><span class="badge" id="editStatusBadge">-</span></div>
     </div>
-    <div class="form-group">
-      <label>タスク名</label>
-      <input type="text" id="taskName" placeholder="例：仕込み：たれの仕込み">
+    <div class="field"><label>出勤時刻</label><input type="time" id="editIn"></div>
+    <div class="field"><label>退勤時刻</label><input type="time" id="editOut"></div>
+    <div class="field"><label>休憩分</label><input type="number" id="editBreak"></div>
+    <div class="field"><label>備考</label><input type="text" id="editNote"></div>
+    <div class="row-flex">
+      <button class="btn btn-in" id="btnSaveEdit">保存</button>
+      <button class="btn btn-secondary" id="btnCancelEdit">閉じる</button>
     </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>優先度</label>
-        <select id="taskPriority"></select>
-      </div>
-      <div class="form-group">
-        <label>期限</label>
-        <input type="date" id="taskDeadline">
-      </div>
-    </div>
-    <div class="form-group">
-      <label>共有（オープン業務に表示する）</label>
-      <select id="taskShare">
-        <option value="OFF">OFF（自分だけ）</option>
-        <option value="ON">ON（全員に共有）</option>
+    <div style="height:8px"></div>
+    <button class="btn btn-secondary" id="btnApproveRecord">✓ 承認する</button>
+    <button class="btn btn-secondary" id="btnUnapproveRecord" style="display:none; border-color:var(--yellow); color:var(--yellow);">🔓 承認解除する（編集可能に戻す）</button>
+  </div>
+</div>
+
+<!-- スタッフ編集モーダル -->
+<div class="modal-overlay" id="staffModal">
+  <div class="modal-sheet">
+    <h3>スタッフ編集</h3>
+    <div class="field"><label>氏名</label><input type="text" id="staffEditName"></div>
+    <div class="field">
+      <label>性別</label>
+      <select id="staffEditGender">
+        <option value="男性">男性</option>
+        <option value="女性">女性</option>
+        <option value="その他">その他・未回答</option>
       </select>
     </div>
-    <div class="form-group">
-      <label>メモ</label>
-      <textarea id="taskMemo" placeholder="補足があれば"></textarea>
+    <div class="field"><label>入社日（有給の法定付与計算に使用）</label><input type="date" id="staffEditHireDate"></div>
+    <div class="field">
+      <label>週所定労働日数（有給の比例付与判定に使用）</label>
+      <select id="staffEditWeeklyDays">
+        <option value="5">5日以上（通常付与）</option>
+        <option value="4">4日</option>
+        <option value="3">3日</option>
+        <option value="2">2日</option>
+        <option value="1">1日</option>
+      </select>
     </div>
-    <div class="modal-buttons">
-      <button class="btn-cancel" onclick="closeModal('taskModal')">キャンセル</button>
-      <button class="btn-primary" onclick="submitTask()">保存</button>
+    <div class="field">
+      <label>雇用形態</label>
+      <select id="staffEditType" onchange="syncStaffTypeFields()">
+        <option value="アルバイト">アルバイト</option>
+        <option value="パート">パート</option>
+        <option value="正社員">正社員</option>
+        <option value="契約社員">契約社員</option>
+      </select>
+    </div>
+    <div class="field" id="staffHourlyField"><label>時給</label><input type="number" id="staffEditHourly"></div>
+    <div class="field" id="staffMonthlyField" style="display:none;"><label>月給</label><input type="number" id="staffEditMonthly"></div>
+    <div class="field">
+      <label>交通費タイプ</label>
+      <select id="staffEditTransportType" onchange="syncTransportFields()">
+        <option value="daily">日額（出勤日ごとに加算）</option>
+        <option value="monthly">定期代（月1回・全額）</option>
+      </select>
+    </div>
+    <div class="field" id="transportDailyField"><label>交通費（1出勤あたり）</label><input type="number" id="staffEditTransport" placeholder="例：500"></div>
+    <div class="field" id="transportMonthlyField" style="display:none;"><label>定期代（月額）</label><input type="number" id="staffEditCommuteFee" placeholder="例：10000"></div>
+    <div class="field"><label>備考</label><input type="text" id="staffEditNote" placeholder="任意"></div>
+    <div class="row-flex">
+      <button class="btn btn-in" id="btnSaveStaff">保存</button>
+      <button class="btn btn-secondary" id="btnDeleteStaff">削除</button>
     </div>
   </div>
 </div>
 
-<!-- ===== モーダル：コメント ===== -->
-<div class="modal-overlay" id="commentModal">
+<!-- 有給休暇モーダル -->
+<div class="modal-overlay" id="leaveModal">
   <div class="modal-sheet">
-    <div class="modal-title" id="commentModalTaskName">コメント</div>
-    <div class="comment-list" id="commentList"></div>
-    <div class="comment-input-row">
-      <input type="text" id="newCommentText" placeholder="コメントを入力">
-      <button onclick="submitComment()">送信</button>
+    <h3>有給休暇</h3>
+    <div class="field"><label>氏名</label><div id="leaveStaffName" style="font-weight:700;"></div></div>
+    <div class="field"><label>現在の残日数</label><div id="leaveBalanceDisplay" style="font-weight:700; font-size:20px;">-</div></div>
+    <div class="field">
+      <label>操作</label>
+      <select id="leaveActionType">
+        <option value="grant">付与する</option>
+        <option value="use">消化する（取得日を記録）</option>
+      </select>
     </div>
-    <div class="modal-buttons">
-      <button class="btn-cancel" style="flex:1" onclick="closeModal('commentModal')">閉じる</button>
+    <div class="field" id="leaveDateField" style="display:none;"><label>取得日</label><input type="date" id="leaveDate"></div>
+    <div class="field"><label>日数（0.5＝半休）</label><input type="number" step="0.5" id="leaveDays" value="1"></div>
+    <div class="field"><label>備考</label><input type="text" id="leaveNote" placeholder="任意"></div>
+    <div class="row-flex">
+      <button class="btn btn-in" id="btnSaveLeave">記録する</button>
+      <button class="btn btn-secondary" id="btnCancelLeave">閉じる</button>
     </div>
   </div>
 </div>
 
-<!-- ===== モーダル：議事録詳細 ===== -->
-<div class="modal-overlay" id="minutesModal">
+<!-- PIN入力モーダル -->
+<div class="modal-overlay" id="pinModal">
   <div class="modal-sheet">
-    <div class="modal-title" id="minutesModalTitle">議事録</div>
-    <div class="form-group">
-      <label>記入者</label>
-      <select id="minutesAuthor"></select>
-    </div>
-    <div class="form-group">
-      <label>議題</label>
-      <textarea id="minutesTopic" style="min-height:120px;"></textarea>
-    </div>
-    <div class="form-group">
-      <label>決定事項</label>
-      <textarea id="minutesDecision" style="min-height:120px;"></textarea>
-    </div>
-    <div class="form-group">
-      <label>次回予定日（入力すると次回の議事録が自動生成されます）</label>
-      <input type="date" id="minutesNextDate">
-    </div>
-    <div class="modal-buttons">
-      <button class="btn-cancel" onclick="closeModal('minutesModal')">閉じる</button>
-      <button class="btn-primary" onclick="submitMinutes()">保存</button>
+    <h3>🔒 管理者PIN</h3>
+    <div class="field"><label>PINを入力してください</label><input type="password" inputmode="numeric" id="pinInput" placeholder="••••"></div>
+    <div class="row-flex">
+      <button class="btn btn-in" id="btnSubmitPin">開く</button>
+      <button class="btn btn-secondary" id="btnCancelPin">閉じる</button>
     </div>
   </div>
 </div>
 
-<div id="toast"></div>
-
-<!-- ===== 議事録詳細閲覧画面（全画面） ===== -->
-<div id="minutesDetailScreen">
-  <div class="detail-header">
-    <button class="back-btn" onclick="closeMinutesDetail()">←</button>
-    <div class="detail-title" id="minutesDetailTitle">議事録</div>
-    <button class="edit-btn" onclick="openMinutesEditModal()">編集</button>
-  </div>
-  <div class="detail-body">
-    <div class="detail-section">
-      <div class="detail-section-label">記入者</div>
-      <div class="detail-section-content" id="minutesDetailAuthor"></div>
-    </div>
-    <div class="detail-section">
-      <div class="detail-section-label">議題</div>
-      <div class="detail-section-content" id="minutesDetailTopic"></div>
-    </div>
-    <div class="detail-section">
-      <div class="detail-section-label">決定事項</div>
-      <div class="detail-section-content" id="minutesDetailDecision"></div>
-    </div>
-    <div class="detail-section">
-      <div class="detail-section-label">次回予定日</div>
-      <div id="minutesDetailNextDate"></div>
-    </div>
-  </div>
-</div>
+<div class="toast" id="toast"></div>
 
 <script>
-// ============================================================
-// タスク共有シート（梅北店）アプリ JavaScript
-// ============================================================
+/* ============ 設定：GAS Web APIのデプロイURLと、設定シートのAPIキーに差し替えてください ============ */
+const API_URL = 'https://script.google.com/macros/s/AKfycbx18NvBWyUOGY829l4nnyaAKq1slZbXBfMNrDRoig9FNaqlWhdE8l-aOKXQsuq6wB1o/exec';
+const API_KEY = 'c1ea5e35-5972-4263-80c0-267e68d2ee6f'; // スプレッドシートの「設定」シート → APIキー の値をコピー
 
-// 【重要】GASのWeb APIデプロイ後に発行されるURLをここに設定してください
-// 拡張機能→Apps Script→デプロイ→新しいデプロイ→種類「ウェブアプリ」で発行されるURL
-const API_BASE_URL = 'https://script.google.com/macros/s/AKfycbyyDYAO5PUy8TgM09TfsmTvI9OZLYLeWapHPLxevgTloukLSxR6_7MeIAsRGQwr0SPo/exec';
+let state = {
+  staff: [],
+  config: {},
+  todayLog: [],
+  selectedStaffId: null,
+  editingStaffId: null,
+};
 
-const STORAGE_KEY_STAFF_NAME = 'tasksShareApp_staffName';
+// ---------- API呼び出し ----------
+let pendingRequests = 0;
+function showLoadingBar() {
+  pendingRequests++;
+  document.getElementById('loadingBar').classList.add('active');
+}
+function hideLoadingBar() {
+  pendingRequests = Math.max(0, pendingRequests - 1);
+  if (pendingRequests === 0) document.getElementById('loadingBar').classList.remove('active');
+}
 
-let currentStaffName = null;
-let currentTab = 'home';
-let staffListCache = []; // スタッフ一覧（議事録記入者プルダウン等で再利用）
-let settingsCache = null; // カテゴリ・ステータス・優先度マスタ（ログイン後に1回取得しキャッシュ）
-let editingTaskId = null; // タスク編集モーダルで「編集中か新規か」を判定するためのフラグ
-let editingTaskOwner = null; // 編集中タスクの所有者シート名（自分のタスクのみ編集可）
-let activeCommentTaskId = null;
-let activeMinutesSheetName = null;
+function setSyncing(st) {
+  const d = document.getElementById('syncDot'), l = document.getElementById('syncLabel');
+  if (!d || !l) return;
+  if (st === 'syncing') { d.className = 'sync-dot syncing'; l.textContent = '同期中…'; }
+  else if (st === 'error') { d.className = 'sync-dot error'; l.textContent = 'エラー'; }
+  else { d.className = 'sync-dot'; l.textContent = '同期済み'; }
+}
 
-// ------------------------------------------------------------
-// API呼び出し共通関数
-// ------------------------------------------------------------
-async function callApi(action, params) {
+async function apiGet(action, params = {}) {
+  showLoadingBar(); setSyncing('syncing');
   try {
-    const res = await fetch(API_BASE_URL, {
+    // _t：キャッシュバスター。GAS Web Appの中継URL（echo）が古い/無効な内容を
+    // 返してしまう問題を避けるため、リクエストを毎回ユニークにする。
+    const qs = new URLSearchParams({ action, key: API_KEY, _t: Date.now(), ...params }).toString();
+    const res = await fetch(`${API_URL}?${qs}`, { cache: 'no-store' });
+    const json = await res.json();
+    setSyncing(json && json.success === false ? 'error' : 'ok');
+    return json;
+  } catch (err) {
+    setSyncing('error');
+    throw err;
+  } finally {
+    hideLoadingBar();
+  }
+}
+async function apiPost(action, payload = {}) {
+  showLoadingBar(); setSyncing('syncing');
+  try {
+    const res = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(Object.assign({ action: action }, params || {})),
+      body: JSON.stringify({ action, key: API_KEY, ...payload }),
+      cache: 'no-store'
     });
-    const data = await res.json();
-    // デバッグ用ログ（問題解消後に削除予定）
-    console.log('[API]', action, JSON.stringify(data).substring(0, 200));
-    if (!data.success && data.error) {
-      showToast(data.error);
-    }
-    return data;
+    const json = await res.json();
+    setSyncing(json && json.success === false ? 'error' : 'ok');
+    return json;
   } catch (err) {
-    console.error('[API ERROR]', action, err);
-    showToast('通信エラーが発生しました。電波状況を確認してください');
-    return { success: false, error: String(err) };
+    setSyncing('error');
+    throw err;
+  } finally {
+    hideLoadingBar();
   }
 }
 
-function showToast(message) {
-  const toast = document.getElementById('toast');
-  toast.textContent = message;
-  toast.classList.add('show');
-  setTimeout(function () { toast.classList.remove('show'); }, 2500);
+// ---------- ボタンの読み込み中表示 ----------
+function setButtonLoading(btn, isLoading, loadingLabel) {
+  if (!btn) return;
+  if (isLoading) {
+    btn.dataset.originalHtml = btn.innerHTML;
+    btn.innerHTML = `<span class="spinner"></span>${loadingLabel ? loadingLabel : ''}`;
+    btn.classList.add('is-loading');
+    btn.disabled = true;
+  } else {
+    if (btn.dataset.originalHtml) btn.innerHTML = btn.dataset.originalHtml;
+    btn.classList.remove('is-loading');
+    btn.disabled = false;
+  }
 }
 
-// ------------------------------------------------------------
-// 初期化・ログイン
-// ------------------------------------------------------------
-let currentSiteName = '';
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1800);
+}
 
-window.addEventListener('DOMContentLoaded', function () {
-  loadSiteInfo();
-  const savedName = localStorage.getItem(STORAGE_KEY_STAFF_NAME);
-  loadStaffList(function () {
-    if (savedName) {
-      // 端末に記憶されている名前があれば自動ログイン
-      doLogin(savedName);
+// ---------- タブ切り替え（管理・設定タブはPINロック） ----------
+let unlockedThisSession = false;
+let pendingTabBtn = null;
+const LOCKED_TABS = ['admin', 'settings'];
+
+document.querySelectorAll('nav.tabbar button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (LOCKED_TABS.includes(btn.dataset.tab) && !unlockedThisSession) {
+      pendingTabBtn = btn;
+      document.getElementById('pinInput').value = '';
+      document.getElementById('pinModal').classList.add('open');
+      return;
     }
+    switchToTab_(btn);
   });
 });
 
-/**
- * このアプリがどの拠点（店舗）のものかを取得し、
- * ログイン画面のバッジとアプリヘッダーに表示する
- */
-async function loadSiteInfo() {
-  const data = await callApi('getSiteInfo');
-  const badge = document.getElementById('siteBadge');
-  const headerSiteName = document.getElementById('headerSiteName');
+function switchToTab_(btn) {
+  document.querySelectorAll('nav.tabbar button').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('page-' + btn.dataset.tab).classList.add('active');
+  if (btn.dataset.tab === 'admin') { loadAdminAndAlerts_(); }
+}
 
-  if (data.success && data.siteName) {
-    currentSiteName = data.siteName;
-    badge.textContent = data.siteName;
-    headerSiteName.textContent = data.siteName;
-    document.title = 'タスク共有 | ' + data.siteName;
+// 管理タブ表示時の通信をGASへの同時アクセスを避けるため順番に実行する
+async function loadAdminAndAlerts_() {
+  await loadAdminDate();
+  await loadAlerts();
+}
+
+document.getElementById('btnCancelPin').addEventListener('click', () => {
+  pendingTabBtn = null;
+  document.getElementById('pinModal').classList.remove('open');
+});
+
+document.getElementById('btnSubmitPin').addEventListener('click', async () => {
+  const btn = document.getElementById('btnSubmitPin');
+  const pin = document.getElementById('pinInput').value;
+  setButtonLoading(btn, true, '確認中…');
+  const res = await apiPost('checkPin', { pin });
+  setButtonLoading(btn, false);
+  if (res.success) {
+    unlockedThisSession = true;
+    document.getElementById('pinModal').classList.remove('open');
+    if (pendingTabBtn) { switchToTab_(pendingTabBtn); pendingTabBtn = null; }
   } else {
-    badge.textContent = '拠点名が未設定です';
+    showToast(res.error || 'PINが違います');
   }
-}
+});
 
-async function loadStaffList(callback) {
-  const data = await callApi('getStaffList');
-  const container = document.getElementById('staffList');
-  container.innerHTML = '';
+document.getElementById('pinInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btnSubmitPin').click();
+});
 
-  if (data.success && data.staff && data.staff.length > 0) {
-    staffListCache = data.staff; // キャッシュして議事録記入者プルダウン等で再利用
-    data.staff.forEach(function (name) {
-      const btn = document.createElement('button');
-      btn.className = 'staff-btn';
-      btn.textContent = name;
-      btn.onclick = function () { doLogin(name); };
-      container.appendChild(btn);
-    });
-  } else {
-    staffListCache = [];
-    container.innerHTML = '<div class="empty-state">スタッフが登録されていません。下から追加してください</div>';
-  }
-
-  if (callback) callback();
-}
-
-async function addStaff() {
-  const input = document.getElementById('newStaffName');
-  const name = input.value.trim();
-  if (!name) {
-    showToast('名前を入力してください');
-    return;
-  }
-  const data = await callApi('addStaff', { name: name });
-  if (data.success) {
-    showToast(data.message || '追加しました');
-    input.value = '';
-    loadStaffList();
-  }
-}
-
-function doLogin(name) {
-  currentStaffName = name;
-  localStorage.setItem(STORAGE_KEY_STAFF_NAME, name);
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('appScreen').classList.add('active');
-  document.getElementById('userChip').textContent = name + ' ▾';
-  initAppData();
-}
-
-function logout() {
-  if (!confirm('ログアウトしますか？')) return;
-  localStorage.removeItem(STORAGE_KEY_STAFF_NAME);
-  currentStaffName = null;
-  document.getElementById('appScreen').classList.remove('active');
-  document.getElementById('loginScreen').style.display = 'flex';
-  loadStaffList();
-}
-
-async function initAppData() {
-  const data = await callApi('getSettings');
-  if (data.success) {
-    settingsCache = data;
-    populateSelect('taskCategory', data.categories);
-    populateSelect('taskPriority', data.priorities);
-  }
-  switchTab('home');
-}
-
-function populateSelect(elementId, options) {
-  const el = document.getElementById(elementId);
-  el.innerHTML = '';
-  (options || []).forEach(function (opt) {
-    const o = document.createElement('option');
-    o.value = opt;
-    o.textContent = opt;
-    el.appendChild(o);
-  });
-}
-
-// ------------------------------------------------------------
-// タブ切り替え
-// ------------------------------------------------------------
-const TAB_TITLES = {
-  home: 'ホーム',
-  open: 'オープン業務',
-  mytasks: '自分のタスク',
-  minutes: '議事録',
-  done: '完了履歴',
-};
-
-function switchTab(tabName) {
-  currentTab = tabName;
-  document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.remove('active'); });
-  document.getElementById('tab-' + tabName).classList.add('active');
-  document.querySelectorAll('.nav-btn').forEach(function (b) { b.classList.remove('active'); });
-  document.querySelector('.nav-btn[data-tab="' + tabName + '"]').classList.add('active');
-  document.getElementById('headerTitle').textContent = TAB_TITLES[tabName];
-
-  // 議事録・完了履歴タブではタスク追加FABを隠す（文脈が違うため）
-  const fab = document.getElementById('fabAddTask');
-  fab.style.display = (tabName === 'minutes' || tabName === 'done') ? 'none' : 'flex';
-
-  loadTabData(tabName);
-}
-
-function refreshCurrentTab() {
-  loadTabData(currentTab);
-}
-
-function loadTabData(tabName) {
-  if (tabName === 'home') loadHome();
-  else if (tabName === 'open') loadOpenTasks();
-  else if (tabName === 'mytasks') loadMyTasks();
-  else if (tabName === 'minutes') loadMinutesList();
-  else if (tabName === 'done') loadDoneTasks();
-}
-
-// ------------------------------------------------------------
-// ホーム
-// ------------------------------------------------------------
-async function loadHome() {
-  const data = await callApi('getHome', { staffName: currentStaffName });
-  if (!data.success) return;
-
-  const dueSoonEl = document.getElementById('homeDueSoon');
-  const allEl = document.getElementById('homeAllTasks');
-
-  dueSoonEl.innerHTML = data.dueSoonTasks.length > 0
-    ? data.dueSoonTasks.map(function (t) { return renderTaskCard(t, { owner: currentStaffName, showComplete: true }); }).join('')
-    : '<div class="empty-state">期限が近いタスクはありません</div>';
-
-  allEl.innerHTML = data.tasks.length > 0
-    ? data.tasks.map(function (t) { return renderTaskCard(t, { owner: currentStaffName, showComplete: true }); }).join('')
-    : '<div class="empty-state">未完了のタスクはありません</div>';
-}
-
-// ------------------------------------------------------------
-// オープン業務
-// ------------------------------------------------------------
-async function loadOpenTasks() {
-  const data = await callApi('getOpenTasks');
-  const el = document.getElementById('openTasksList');
-  if (!data.success) return;
-
-  if (!data.tasks || data.tasks.length === 0) {
-    el.innerHTML = '<div class="empty-state">共有されているタスクはありません</div>';
-    return;
-  }
-
-  // スタッフ別にグループ化
-  const groups = {};
-  const order = []; // 表示順（最初に出てきた順）
-  data.tasks.forEach(function (t) {
-    const name = t.assignee || '未割当';
-    if (!groups[name]) {
-      groups[name] = [];
-      order.push(name);
-    }
-    groups[name].push(t);
-  });
-
-  // スタッフチップ（横並び・件数付き）
-  const chips = order.map(function (name) {
-    const count = groups[name].length;
-    return '<button class="staff-chip" onclick="scrollToStaffSection(\'' + escapeHtml(name) + '\')">' +
-      escapeHtml(name) +
-      '<span class="chip-count">' + count + '</span>' +
-    '</button>';
-  }).join('');
-
-  // スタッフ別セクション
-  const sections = order.map(function (name) {
-    const tasks = groups[name];
-    const cards = tasks.map(function (t) {
-      return renderTaskCard(t, {
-        owner: t.assignee,
-        showComplete: (t.assignee === currentStaffName),
-        showComment: true,
-      });
-    }).join('');
-    return '<div class="staff-section" id="staff-section-' + escapeHtml(name) + '">' +
-      '<div class="staff-section-title">' +
-        escapeHtml(name) +
-        '<span class="count-badge">（' + tasks.length + '件）</span>' +
-      '</div>' +
-      cards +
-    '</div>';
-  }).join('');
-
-  el.innerHTML =
-    '<div class="staff-chips">' + chips + '</div>' +
-    sections;
-}
-
-function scrollToStaffSection(name) {
-  const el = document.getElementById('staff-section-' + name);
-  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-// ------------------------------------------------------------
-// 自分のタスク
-// ------------------------------------------------------------
-async function loadMyTasks() {
-  const data = await callApi('getMyTasks', { staffName: currentStaffName });
-  const el = document.getElementById('myTasksList');
-  if (!data.success) return;
-
-  el.innerHTML = data.tasks.length > 0
-    ? data.tasks.map(function (t) { return renderTaskCard(t, { owner: currentStaffName, showComplete: true, showEdit: true }); }).join('')
-    : '<div class="empty-state">タスクがありません。右下の＋から追加できます</div>';
-}
-
-// ------------------------------------------------------------
-// 完了履歴
-// ------------------------------------------------------------
-async function loadDoneTasks() {
-  const data = await callApi('getDoneTasks');
-  const el = document.getElementById('doneTasksList');
-  if (!data.success) return;
-
-  if (data.tasks.length === 0) {
-    el.innerHTML = '<div class="empty-state">完了履歴はまだありません</div>';
-    return;
-  }
-
-  // 新しい順に並べ替え
-  const sorted = data.tasks.slice().sort(function (a, b) {
-    return (a.movedAt < b.movedAt) ? 1 : -1;
-  });
-
-  el.innerHTML = sorted.map(function (t) {
-    return '<div class="task-card">' +
-      '<div class="task-card-top"><div class="task-name done">' + escapeHtml(t.taskName) + '</div></div>' +
-      '<div class="task-meta">' +
-        '<span class="badge assignee">' + escapeHtml(t.assignee) + '</span>' +
-        '<span class="badge">' + escapeHtml(t.category) + '</span>' +
-        (t.doneDate ? '<span class="badge deadline">完了日: ' + t.doneDate + '</span>' : '') +
-      '</div>' +
-    '</div>';
-  }).join('');
-}
-
-// ------------------------------------------------------------
-// タスクカードの共通レンダリング
-// ------------------------------------------------------------
-function renderTaskCard(t, opts) {
-  opts = opts || {};
-  const priorityBadge = t.priority ? '<span class="badge priority-' + t.priority + '">優先度: ' + t.priority + '</span>' : '';
-  const deadlineBadge = t.deadline ? '<span class="badge deadline">期限: ' + t.deadline + '</span>' : '';
-  const assigneeBadge = (opts.owner && opts.owner !== currentStaffName) ? '<span class="badge assignee">' + escapeHtml(opts.owner) + '</span>' : '';
-  const categoryBadge = t.category ? '<span class="badge">' + escapeHtml(t.category) + '</span>' : '';
-
-  // ボタン類（展開エリアに移動）
-  let actions = '';
-  if (opts.showComplete) {
-    actions += '<button class="btn-complete" data-task-id="' + escapeHtml(t.id) + '" data-owner="' + escapeHtml(opts.owner) + '" onclick="completeTaskFromButton(this)">完了にする</button>';
-  }
-  if (opts.showEdit) {
-    actions += '<button class="btn-secondary" data-task-id="' + escapeHtml(t.id) + '" onclick="openEditTaskModal(this.dataset.taskId)">編集</button>';
-  }
-  if (opts.showComment) {
-    actions += '<button class="btn-secondary" data-task-id="' + escapeHtml(t.id) + '" data-task-name="' + escapeHtml(t.taskName) + '" onclick="openCommentModal(this.dataset.taskId, this.dataset.taskName)">コメント</button>';
-  }
-
-  // メモ（あれば展開エリアに表示）
-  const memoHtml = t.memo
-    ? '<div class="task-memo-label">メモ</div><div class="task-memo">' + escapeHtml(t.memo) + '</div>'
-    : '';
-
-  // 最新コメント（あれば展開エリアに表示）
-  const latestComment = (opts.showComment && t.latestComment)
-    ? '<div class="latest-comment">💬 ' + escapeHtml(t.latestComment) + '</div>'
-    : '';
-
-  // メモ・コメント・アクションが何もない場合はトグル不要
-  const hasExpand = t.memo || (opts.showComment && t.latestComment) || actions;
-  const toggleIcon = hasExpand ? '<span class="task-toggle">⌄</span>' : '';
-  const expandArea = hasExpand
-    ? '<div class="task-expand">' +
-        memoHtml +
-        latestComment +
-        (actions ? '<div class="task-actions">' + actions + '</div>' : '') +
-      '</div>'
-    : '';
-  const onclickAttr = hasExpand ? ' onclick="toggleTaskCard(this)"' : '';
-
-  return '<div class="task-card">' +
-    '<div class="task-card-top"' + onclickAttr + '>' +
-      '<div class="task-name">' + escapeHtml(t.taskName) + '</div>' +
-      toggleIcon +
-    '</div>' +
-    '<div class="task-meta">' + categoryBadge + priorityBadge + deadlineBadge + assigneeBadge + '</div>' +
-    expandArea +
-  '</div>';
-}
-
-function toggleTaskCard(headerEl) {
-  const card = headerEl.closest('.task-card');
-  if (card) card.classList.toggle('expanded');
-}
-
-function escapeHtml(str) {
-  if (str === null || str === undefined) return '';
-  return String(str)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
-
-// ------------------------------------------------------------
-// タスク完了
-// ------------------------------------------------------------
-
-// ボタンのtouchstart/mousedownで即座に色を変える（スマホでも確実に反応）
+// ---------- タップフィードバック（:active非対応端末向け） ----------
 document.addEventListener('touchstart', function(e) {
-  const btn = e.target.closest('.btn-complete, .btn-secondary, .btn-primary, .btn-cancel, .staff-btn, .fab');
-  if (btn) {
-    btn.classList.add('btn-pressed');
-    setTimeout(function() { btn.classList.remove('btn-pressed'); }, 200);
+  const el = e.target.closest('.btn, .staff-chip, .tappable, nav.tabbar button');
+  if (el) {
+    el.classList.add('btn-pressed');
+    setTimeout(() => el.classList.remove('btn-pressed'), 200);
   }
 }, { passive: true });
 
-// btn-pressedクラスのスタイルはCSSで定義済み（後述）
-function completeTaskFromButton(buttonEl) {
-  const taskId = buttonEl.dataset.taskId;
-  const ownerName = buttonEl.dataset.owner;
-  completeTask(taskId, ownerName, buttonEl);
+// ---------- リアルタイム時計 ----------
+function updateLiveClock() {
+  const now = new Date();
+  document.getElementById('liveClock').textContent =
+    now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  document.getElementById('liveClockDate').textContent =
+    now.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
 }
+updateLiveClock();
+setInterval(updateLiveClock, 1000);
 
-async function completeTask(taskId, ownerName, buttonEl) {
-  if (!confirm('このタスクを完了にしますか？')) return;
+// ---------- 初期ロード ----------
+async function init() {
+  const today = new Date();
+  document.getElementById('adminDate').value = today.toISOString().slice(0, 10);
+  document.getElementById('summaryMonth').value = today.toISOString().slice(0, 7);
 
-  // ① 押した瞬間にカードを即時グレーアウト（APIの応答を待たない）
-  var card = null;
-  if (buttonEl) {
-    card = buttonEl.closest('.task-card');
-    if (card) {
-      card.classList.add('completing');
-      buttonEl.style.display = 'none';
-    }
-  }
+  const data = await apiGet('getAll');
+  if (!data || data.success !== true) { showToast('読み込みに失敗しました'); return; }
 
-  console.log('[completeTask] taskId:', taskId, 'ownerName:', ownerName);
+  state.staff = data.staff || [];
+  state.config = data.config || {};
+  state.todayLog = data.todayLog || [];
+  state.leaveBalances = data.leaveBalances || {};
 
-  // ② バックエンドに完了を書き込む
-  const data = await callApi('completeTask', { staffName: ownerName, taskId: taskId });
+  document.getElementById('storeName').textContent = state.config['店舗名'] || 'タイムカード';
+  renderStaffGrid();
+  renderTodayList();
+  fillConfigForm();
+  renderStaffList();
+  renderLeaveList();
 
-  console.log('[completeTask] result:', JSON.stringify(data));
-
-  // success: true なら成功（trueでない場合のみ失敗扱い）
-  if (data && data.success === true) {
-    showToast('完了しました ✓');
-    // 現在のタブを即座に再描画
-    if (currentTab === 'mytasks') {
-      await loadMyTasks();
-      await loadOpenTasks(); // オープン業務も連動更新
-    } else if (currentTab === 'open') {
-      await loadOpenTasks();
-      await loadMyTasks(); // 自分のタスクも連動更新
-    } else if (currentTab === 'home') {
-      await loadHome();
-    }
-  } else {
-    // 失敗した場合はグレーアウトを戻す
-    if (card) card.classList.remove('completing');
-    if (buttonEl) buttonEl.style.display = '';
-    const errMsg = (data && data.error) ? data.error : '不明なエラー';
-    showToast('エラー: ' + errMsg);
-    console.error('[completeTask] failed:', errMsg);
+  const navAdminBtn = document.querySelector('nav.tabbar button[data-tab="admin"]');
+  if (navAdminBtn) {
+    navAdminBtn.innerHTML = (data.alertCount > 0)
+      ? `<span class="icon">📋</span>管理<span class="nav-badge">${data.alertCount}</span>`
+      : `<span class="icon">📋</span>管理`;
   }
 }
 
-// タブ切替時に「要更新」フラグが立っていれば再取得するための変数
-var _openTasksDirty = false;
-var _myTasksDirty = false;
-
-// ------------------------------------------------------------
-// タスク追加・編集モーダル
-// ------------------------------------------------------------
-function openAddTaskModal() {
-  editingTaskId = null;
-  editingTaskOwner = currentStaffName;
-  document.getElementById('taskModalTitle').textContent = 'タスクを追加';
-  document.getElementById('taskName').value = '';
-  document.getElementById('taskDeadline').value = '';
-  document.getElementById('taskShare').value = 'OFF';
-  document.getElementById('taskMemo').value = '';
-  if (settingsCache) {
-    document.getElementById('taskCategory').selectedIndex = 0;
-    document.getElementById('taskPriority').selectedIndex = 0;
-  }
-  openModal('taskModal');
-}
-
-async function openEditTaskModal(taskId) {
-  const data = await callApi('getMyTasks', { staffName: currentStaffName });
-  if (!data.success) return;
-  const task = data.tasks.find(function (t) { return t.id === taskId; });
-  if (!task) { showToast('タスクが見つかりませんでした'); return; }
-
-  editingTaskId = taskId;
-  editingTaskOwner = currentStaffName;
-  document.getElementById('taskModalTitle').textContent = 'タスクを編集';
-  document.getElementById('taskCategory').value = task.category;
-  document.getElementById('taskName').value = task.taskName;
-  document.getElementById('taskPriority').value = task.priority;
-  document.getElementById('taskDeadline').value = task.deadline || '';
-  document.getElementById('taskShare').value = task.share || 'OFF';
-  document.getElementById('taskMemo').value = task.memo || '';
-  openModal('taskModal');
-}
-
-async function submitTask() {
-  const taskName = document.getElementById('taskName').value.trim();
-  if (!taskName) { showToast('タスク名を入力してください'); return; }
-
-  const payload = {
-    category: document.getElementById('taskCategory').value,
-    taskName: taskName,
-    priority: document.getElementById('taskPriority').value,
-    deadline: document.getElementById('taskDeadline').value || null,
-    share: document.getElementById('taskShare').value,
-    memo: document.getElementById('taskMemo').value,
-  };
-
-  let data;
-  if (editingTaskId) {
-    data = await callApi('updateTask', { staffName: editingTaskOwner, taskId: editingTaskId, updates: payload });
-  } else {
-    data = await callApi('addTask', { staffName: currentStaffName, task: payload });
-  }
-
-  if (data.success) {
-    showToast('保存しました');
-    closeModal('taskModal');
-    loadTabData(currentTab);
-  }
-}
-
-// ------------------------------------------------------------
-// コメントモーダル
-// ------------------------------------------------------------
-async function openCommentModal(taskId, taskName) {
-  activeCommentTaskId = taskId;
-  document.getElementById('commentModalTaskName').textContent = 'コメント：' + taskName;
-  document.getElementById('newCommentText').value = '';
-  await loadComments(taskId);
-  openModal('commentModal');
-}
-
-async function loadComments(taskId) {
-  const data = await callApi('getComments', { taskId: taskId });
-  const el = document.getElementById('commentList');
-  if (!data.success) return;
-
-  el.innerHTML = data.comments.length > 0
-    ? data.comments.map(function (c) {
-        return '<div class="comment-item">' +
-          '<div class="meta">' + escapeHtml(c.author) + ' ・ ' + c.datetime + '</div>' +
-          '<div class="content">' + escapeHtml(c.content) + '</div>' +
-        '</div>';
-      }).join('')
-    : '<div class="empty-state">まだコメントはありません</div>';
-}
-
-async function submitComment() {
-  const text = document.getElementById('newCommentText').value.trim();
-  if (!text) return;
-  const data = await callApi('addComment', { taskId: activeCommentTaskId, author: currentStaffName, content: text });
-  if (data.success) {
-    document.getElementById('newCommentText').value = '';
-    await loadComments(activeCommentTaskId);
-    loadTabData(currentTab); // 最新コメントのプレビューも更新するため一覧を再読込
-  }
-}
-
-// ------------------------------------------------------------
-// 議事録
-// ------------------------------------------------------------
-async function loadMinutesList() {
-  const data = await callApi('getMinutesList');
-  const el = document.getElementById('minutesList');
-  if (!data.success) return;
-
-  el.innerHTML = data.minutesList.length > 0
-    ? data.minutesList.map(function (m) {
-        return '<div class="minutes-item" data-sheet-name="' + escapeHtml(m.sheetName) + '" onclick="openMinutesDetail(this.dataset.sheetName, this)">' +
-          '<div class="date">' + escapeHtml(m.heldDate || '') + ' の議事録</div>' +
-          (m.author ? '<div class="next">記入者：' + escapeHtml(m.author) + '</div>' : '') +
-          (m.nextDate ? '<div class="next">次回予定：' + escapeHtml(m.nextDate) + '</div>' : '<div class="next">次回未定</div>') +
-        '</div>';
-      }).join('')
-    : '<div class="empty-state">議事録はまだありません</div>';
-}
-
-async function openMinutesDetail(sheetName, clickedEl) {
-  // タップフィードバック：押した瞬間にローディング状態にする
-  if (clickedEl) {
-    clickedEl.classList.add('loading');
-  }
-
-  const data = await callApi('getMinutesDetail', { sheetName: sheetName });
-
-  // ローディング解除
-  if (clickedEl) {
-    clickedEl.classList.remove('loading');
-  }
-
-  if (!data.success) { showToast(data.error || '取得に失敗しました'); return; }
-
-  activeMinutesSheetName = sheetName;
-  document.getElementById('minutesDetailTitle').textContent = data.title || sheetName;
-
-  console.log('[minutesDetail] data:', JSON.stringify(data).substring(0, 300));
-
-  // 記入者
-  const authorEl = document.getElementById('minutesDetailAuthor');
-  if (data.author) {
-    authorEl.textContent = data.author;
-    authorEl.classList.remove('empty');
-  } else {
-    authorEl.textContent = '（未記入）';
-    authorEl.classList.add('empty');
-  }
-
-  // 議題
-  const topicEl = document.getElementById('minutesDetailTopic');
-  if (data.topic) {
-    topicEl.textContent = data.topic;
-    topicEl.classList.remove('empty');
-  } else {
-    topicEl.textContent = '（未記入）';
-    topicEl.classList.add('empty');
-  }
-
-  // 決定事項
-  const decisionEl = document.getElementById('minutesDetailDecision');
-  if (data.decision) {
-    decisionEl.textContent = data.decision;
-    decisionEl.classList.remove('empty');
-  } else {
-    decisionEl.textContent = '（未記入）';
-    decisionEl.classList.add('empty');
-  }
-
-  // 次回予定日
-  const nextDateEl = document.getElementById('minutesDetailNextDate');
-  if (data.nextDate) {
-    nextDateEl.innerHTML = '<span class="detail-next-date">📅 ' + escapeHtml(data.nextDate) + '</span>';
-  } else {
-    nextDateEl.innerHTML = '<span class="detail-next-date" style="color:var(--muted)">未定</span>';
-  }
-
-  document.getElementById('minutesDetailScreen').classList.add('active');
-  document.getElementById('minutesDetailScreen').scrollTop = 0;
-}
-
-function closeMinutesDetail() {
-  document.getElementById('minutesDetailScreen').classList.remove('active');
-}
-
-function openMinutesEditModal() {
-  document.getElementById('minutesModalTitle').textContent = document.getElementById('minutesDetailTitle').textContent;
-
-  // 記入者プルダウンにスタッフ一覧をセット（キャッシュ済みデータを使用）
-  const authorSelect = document.getElementById('minutesAuthor');
-  authorSelect.innerHTML = '<option value="">（選択してください）</option>';
-  staffListCache.forEach(function (name) {
-    const opt = document.createElement('option');
-    opt.value = name;
-    opt.textContent = name;
-    authorSelect.appendChild(opt);
+// ---------- 打刻タブ ----------
+function renderStaffGrid() {
+  const grid = document.getElementById('staffGrid');
+  grid.innerHTML = '';
+  state.staff.forEach(s => {
+      const isWorking = state.todayLog.some(r => r['スタッフID'] === s['ID'] && !r['退勤時刻']);
+      const chip = document.createElement('div');
+      chip.className = 'staff-chip' + (isWorking ? ' working' : '');
+      chip.dataset.staffId = s['ID'];
+      chip.innerHTML = `${s['氏名']}<span class="status-dot">${isWorking ? '● 出勤中' : '未出勤'}</span>`;
+      chip.addEventListener('click', () => selectStaff(s['ID']));
+      grid.appendChild(chip);
   });
-  // 現在の記入者があれば選択状態にする
-  const currentAuthor = document.getElementById('minutesDetailAuthor').textContent;
-  console.log('[minutesEdit] currentAuthor:', currentAuthor, 'isEmpty:', document.getElementById('minutesDetailAuthor').classList.contains('empty'));
-  if (currentAuthor && !document.getElementById('minutesDetailAuthor').classList.contains('empty')) {
-    authorSelect.value = currentAuthor;
+}
+
+function selectStaff(staffId) {
+  state.selectedStaffId = staffId;
+  document.querySelectorAll('.staff-chip').forEach(c => {
+    c.classList.toggle('selected', c.dataset.staffId === staffId);
+  });
+  const s = state.staff.find(x => x['ID'] === staffId);
+  const isWorking = state.todayLog.some(r => r['スタッフID'] === staffId && !r['退勤時刻']);
+
+  document.getElementById('selectedStaffName').textContent = s ? s['氏名'] : '未選択';
+  document.getElementById('selectedStaffState').textContent = isWorking ? '出勤中' : '未出勤';
+  document.getElementById('btnClockIn').disabled = isWorking;
+  document.getElementById('btnClockOut').disabled = !isWorking;
+}
+
+document.getElementById('btnClockIn').addEventListener('click', async () => {
+  if (!state.selectedStaffId) return;
+  const btn = document.getElementById('btnClockIn');
+  setButtonLoading(btn, true, '出勤処理中…');
+  const res = await apiPost('clockIn', { staffId: state.selectedStaffId });
+  setButtonLoading(btn, false);
+  if (res.success) {
+    showToast('出勤しました ' + res.time);
+    await init();
+    selectStaff(state.selectedStaffId);
   } else {
-    // ログイン中の自分をデフォルト選択
-    authorSelect.value = currentStaffName || '';
+    showToast(res.error || '失敗しました');
   }
+});
 
-  document.getElementById('minutesTopic').value = document.getElementById('minutesDetailTopic').classList.contains('empty')
-    ? '' : document.getElementById('minutesDetailTopic').textContent;
-  document.getElementById('minutesDecision').value = document.getElementById('minutesDetailDecision').classList.contains('empty')
-    ? '' : document.getElementById('minutesDetailDecision').textContent;
+document.getElementById('btnClockOut').addEventListener('click', async () => {
+  if (!state.selectedStaffId) return;
+  const btn = document.getElementById('btnClockOut');
+  setButtonLoading(btn, true, '退勤処理中…');
+  const res = await apiPost('clockOut', { staffId: state.selectedStaffId });
+  setButtonLoading(btn, false);
+  if (res.success) {
+    showToast('退勤しました ' + res.time);
+    await init();
+    selectStaff(state.selectedStaffId);
+  } else {
+    showToast(res.error || '失敗しました');
+  }
+});
 
-  // 次回予定日：保存済みの値を初期表示する（空欄ではなく現在の値をセット）
-  const nextDateEl = document.getElementById('minutesDetailNextDate');
-  const nextDateSpan = nextDateEl ? nextDateEl.querySelector('.detail-next-date') : null;
-  const currentNextDate = nextDateSpan && !nextDateSpan.style.color ? nextDateSpan.textContent.replace('📅 ', '').trim() : '';
-  document.getElementById('minutesNextDate').value = currentNextDate || '';
-
-  openModal('minutesModal');
+function renderTodayList() {
+  const wrap = document.getElementById('todayList');
+  if (state.todayLog.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">まだ打刻がありません</div>';
+    return;
+  }
+  wrap.innerHTML = state.todayLog.map(r => `
+    <div class="record-row">
+      <span class="rname">${r['氏名']}</span>
+      <span class="rtime">${r['出勤時刻'] || '--:--'} 〜 ${r['退勤時刻'] || '--:--'}</span>
+    </div>
+  `).join('');
 }
 
-async function submitMinutes() {
-  const fields = {
-    author: document.getElementById('minutesAuthor').value,
-    topic: document.getElementById('minutesTopic').value,
-    decision: document.getElementById('minutesDecision').value,
+// ---------- 管理タブ ----------
+document.getElementById('adminDate').addEventListener('change', loadAdminDate);
+
+async function loadAdminDate() {
+  const date = document.getElementById('adminDate').value;
+  const wrap = document.getElementById('adminList');
+  wrap.innerHTML = '<div class="empty-state">読み込み中...</div>';
+  const data = await apiGet('getDaily', { date });
+  if (!data.success || data.records.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">この日の打刻はありません</div>';
+    return;
+  }
+  wrap.innerHTML = data.records.map(r => `
+    <div class="record-row tappable" data-record='${JSON.stringify(r).replace(/'/g, "&apos;")}' onclick="openEditModal(this)" style="cursor:pointer;">
+      <span class="rname">${r['氏名']}<br><span class="rtime">${r['出勤時刻'] || '--:--'} 〜 ${r['退勤時刻'] || '--:--'}</span></span>
+      <span class="badge ${r['ステータス'] === '承認済み' ? 'approved' : 'pending'}">${r['ステータス']}</span>
+    </div>
+  `).join('');
+}
+
+async function loadAlerts() {
+  const data = await apiGet('getAlerts');
+  const card = document.getElementById('alertCard');
+  const wrap = document.getElementById('alertList');
+  if (!data.success || data.records.length === 0) {
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = '';
+  wrap.innerHTML = data.records.map(r => `
+    <div class="record-row tappable" data-record='${JSON.stringify(r).replace(/'/g, "&apos;")}' onclick="openEditModal(this)" style="cursor:pointer;">
+      <span class="rname">${r['氏名']}<br><span class="rtime">${r['日付']}　出勤 ${r['出勤時刻']}・退勤未記録</span></span>
+      <span class="badge pending">要確認</span>
+    </div>
+  `).join('');
+}
+
+window.openEditModal = function(el) {
+  const r = JSON.parse(el.dataset.record.replace(/&apos;/g, "'"));
+  document.getElementById('editModal').dataset.record = JSON.stringify(r);
+  document.getElementById('editStaffName').textContent = r['氏名'];
+  document.getElementById('editIn').value = r['出勤時刻'] || '';
+  document.getElementById('editOut').value = r['退勤時刻'] || '';
+  document.getElementById('editBreak').value = r['休憩分'] || 0;
+  document.getElementById('editNote').value = r['備考'] || '';
+
+  const isApproved = r['ステータス'] === '承認済み';
+  const badge = document.getElementById('editStatusBadge');
+  badge.textContent = isApproved ? '承認済み（ロック中）' : (r['ステータス'] || '未承認');
+  badge.className = 'badge ' + (isApproved ? 'approved' : 'pending');
+
+  // 承認済みは編集不可（承認解除するまでロック）
+  ['editIn', 'editOut', 'editBreak', 'editNote'].forEach(id => {
+    document.getElementById(id).disabled = isApproved;
+  });
+  document.getElementById('btnSaveEdit').style.display = isApproved ? 'none' : '';
+  document.getElementById('btnApproveRecord').style.display = isApproved ? 'none' : '';
+  document.getElementById('btnUnapproveRecord').style.display = isApproved ? '' : 'none';
+
+  document.getElementById('editModal').classList.add('open');
+};
+
+document.getElementById('btnCancelEdit').addEventListener('click', () => {
+  document.getElementById('editModal').classList.remove('open');
+});
+
+document.getElementById('btnApproveRecord').addEventListener('click', async () => {
+  const btn = document.getElementById('btnApproveRecord');
+  const r = JSON.parse(document.getElementById('editModal').dataset.record);
+  setButtonLoading(btn, true, '承認中…');
+  const res = await apiPost('approveRecord', { id: r.ID });
+  setButtonLoading(btn, false);
+  if (res.success) {
+    showToast('承認しました');
+    document.getElementById('editModal').classList.remove('open');
+    loadAdminDate();
+  } else {
+    showToast(res.error || '失敗しました');
+  }
+});
+
+document.getElementById('btnUnapproveRecord').addEventListener('click', async () => {
+  if (!confirm('承認を解除して編集可能に戻しますか？')) return;
+  const btn = document.getElementById('btnUnapproveRecord');
+  const r = JSON.parse(document.getElementById('editModal').dataset.record);
+  setButtonLoading(btn, true, '解除中…');
+  const res = await apiPost('unapproveRecord', { id: r.ID });
+  setButtonLoading(btn, false);
+  if (res.success) {
+    showToast('承認を解除しました');
+    document.getElementById('editModal').classList.remove('open');
+    loadAdminDate();
+  } else {
+    showToast(res.error || '失敗しました');
+  }
+});
+
+document.getElementById('btnSaveEdit').addEventListener('click', async () => {
+  const btn = document.getElementById('btnSaveEdit');
+  const r = JSON.parse(document.getElementById('editModal').dataset.record);
+  r['出勤時刻'] = document.getElementById('editIn').value;
+  r['退勤時刻'] = document.getElementById('editOut').value;
+  r['休憩分'] = document.getElementById('editBreak').value;
+  r['備考'] = document.getElementById('editNote').value;
+  setButtonLoading(btn, true, '保存中…');
+  const res = await apiPost('saveRecord', { record: r });
+  setButtonLoading(btn, false);
+  if (res.success) {
+    showToast('保存しました');
+    document.getElementById('editModal').classList.remove('open');
+    loadAdminDate();
+  } else {
+    showToast(res.error || '失敗しました');
+  }
+});
+
+document.getElementById('btnAggregate').addEventListener('click', async () => {
+  const btn = document.getElementById('btnAggregate');
+  const month = document.getElementById('summaryMonth').value;
+  setButtonLoading(btn, true, '集計中…');
+  const res = await apiPost('aggregateMonth', { month });
+  setButtonLoading(btn, false);
+  if (res.success) {
+    showToast(`${res.label || month}：${res.staffCount}名分を集計しました`);
+    loadSummary(month);
+  } else {
+    showToast(res.error || '失敗しました');
+  }
+});
+
+async function loadSummary(month) {
+  const data = await apiGet('getMonthly', { month });
+  const wrap = document.getElementById('summaryList');
+  if (!data.success || data.records.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">集計データがありません</div>';
+    return;
+  }
+  wrap.innerHTML = data.records.map(r => `
+    <div class="record-row">
+      <span class="rname">${r['氏名']}（${r['性別'] || '-'}）<br><span class="rtime">
+        出勤${r['出勤日数']}日 / 労働${minToH_(r['労働時間数_分'])}h<br>
+        深夜${minToH_(r['深夜労働時間_分'])}h・時間外${minToH_(r['時間外労働時間_分'])}h・休日${minToH_(r['休日労働時間_分'])}h
+      </span></span>
+      <span class="rtime">基本給¥${r['基本給']}<br>交通費¥${r['交通費合計']}<br><b>計¥${r['支給総額']}</b></span>
+    </div>
+  `).join('');
+}
+function minToH_(min) { return Math.round((Number(min) || 0) / 60 * 10) / 10; }
+
+document.getElementById('btnExportCsv').addEventListener('click', async () => {
+  const month = document.getElementById('summaryMonth').value;
+  const data = await apiGet('getMonthly', { month });
+  if (!data.success || data.records.length === 0) {
+    showToast('出力するデータがありません');
+    return;
+  }
+  // 賃金台帳準拠フォーマット（社労士・税理士向け）
+  const header = ['氏名', '性別', '賃金計算期間', '労働日数', '労働時間数', '時間外労働時間数', '休日労働時間数', '深夜労働時間数', '基本給', '交通費合計', '支給総額'];
+  const rows = data.records.map(r => [
+    r['氏名'],
+    r['性別'] || '',
+    month,
+    r['出勤日数'],
+    minToH_(r['労働時間数_分']),
+    minToH_(r['時間外労働時間_分']),
+    minToH_(r['休日労働時間_分']),
+    minToH_(r['深夜労働時間_分']),
+    r['基本給'],
+    r['交通費合計'],
+    r['支給総額'],
+  ].join(','));
+  const csv = '\uFEFF' + [header.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `timecard_${month}.csv`;
+  a.click();
+});
+
+// ---------- 設定タブ ----------
+function fillConfigForm() {
+  document.getElementById('cfgStoreName').value = state.config['店舗名'] || '';
+  document.getElementById('cfgBreakMin').value = state.config['標準休憩分'] || 60;
+  document.getElementById('cfgClosingDay').value = state.config['締め日'] || '末日';
+  document.getElementById('cfgPayDay').value = state.config['支払日'] || '';
+  document.getElementById('cfgLegalHoliday').value = state.config['法定休日'] || '日';
+  document.getElementById('cfgStandardMin').value = state.config['所定労働時間_分'] || 480;
+  document.getElementById('cfgLinkMode').value = state.config['勤怠連携モード'] || 'standalone';
+  document.getElementById('cfgLinkUrl').value = state.config['連携GAS_URL'] || '';
+}
+
+document.getElementById('btnSaveConfig').addEventListener('click', async () => {
+  const btn = document.getElementById('btnSaveConfig');
+  const config = {
+    '店舗名': document.getElementById('cfgStoreName').value,
+    '標準休憩分': document.getElementById('cfgBreakMin').value,
+    '締め日': document.getElementById('cfgClosingDay').value,
+    '支払日': document.getElementById('cfgPayDay').value,
+    '法定休日': document.getElementById('cfgLegalHoliday').value,
+    '所定労働時間_分': document.getElementById('cfgStandardMin').value,
+    '勤怠連携モード': document.getElementById('cfgLinkMode').value,
+    '連携GAS_URL': document.getElementById('cfgLinkUrl').value,
   };
-  const nextDate = document.getElementById('minutesNextDate').value;
-  if (nextDate) fields.nextDate = nextDate;
-
-  const data = await callApi('updateMinutesDetail', { sheetName: activeMinutesSheetName, fields: fields });
-  if (data.success) {
-    showToast(data.childCreated ? '保存しました（次回の議事録を作成しました）' : '保存しました');
-    closeModal('minutesModal');
-    await openMinutesDetail(activeMinutesSheetName);
-    loadMinutesList();
+  setButtonLoading(btn, true, '保存中…');
+  const res = await apiPost('saveConfig', { config });
+  setButtonLoading(btn, false);
+  if (res.success) {
+    showToast('設定を保存しました');
+    init();
+  } else {
+    showToast(res.error || '失敗しました');
   }
+});
+
+document.getElementById('btnChangePin').addEventListener('click', async () => {
+  const btn = document.getElementById('btnChangePin');
+  const currentPin = document.getElementById('cfgCurrentPin').value;
+  const newPin = document.getElementById('cfgNewPin').value;
+  if (!currentPin || !newPin) { showToast('現在のPINと新しいPINを入力してください'); return; }
+  setButtonLoading(btn, true, '変更中…');
+  const res = await apiPost('changePin', { currentPin, newPin });
+  setButtonLoading(btn, false);
+  if (res.success) {
+    showToast('PINを変更しました');
+    document.getElementById('cfgCurrentPin').value = '';
+    document.getElementById('cfgNewPin').value = '';
+  } else {
+    showToast(res.error || '失敗しました');
+  }
+});
+
+function renderStaffList() {
+  const wrap = document.getElementById('staffList');
+  if (state.staff.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">スタッフが登録されていません</div>';
+    return;
+  }
+  wrap.innerHTML = state.staff.map(s => {
+    const isMonthly = s['雇用形態'] === '正社員' || s['雇用形態'] === '契約社員';
+    const wage = isMonthly ? `月給¥${s['月給']}` : `時給¥${s['時給']}`;
+    const transport = s['交通費タイプ'] === 'monthly'
+      ? `定期代¥${s['定期代'] || 0}（月1回）`
+      : `交通費¥${s['交通費'] || 0}（日額）`;
+    return `
+    <div class="record-row tappable" data-staff-id="${s['ID']}" onclick="openStaffModal(this)" style="cursor:pointer;">
+      <span class="rname">${s['氏名']}（${s['性別'] || '-'}）</span>
+      <span class="rtime">${s['雇用形態']}・${wage}・${transport}</span>
+    </div>
+  `;
+  }).join('');
 }
 
-// ------------------------------------------------------------
-// モーダル共通
-// ------------------------------------------------------------
-function openModal(id) {
-  document.getElementById(id).classList.add('active');
-}
-function closeModal(id) {
-  document.getElementById(id).classList.remove('active');
+function syncStaffTypeFields() {
+  const t = document.getElementById('staffEditType').value;
+  const isMonthly = t === '正社員' || t === '契約社員';
+  document.getElementById('staffHourlyField').style.display = isMonthly ? 'none' : '';
+  document.getElementById('staffMonthlyField').style.display = isMonthly ? '' : 'none';
 }
 
+function syncTransportFields() {
+  const t = document.getElementById('staffEditTransportType').value;
+  document.getElementById('transportDailyField').style.display = t === 'monthly' ? 'none' : '';
+  document.getElementById('transportMonthlyField').style.display = t === 'monthly' ? '' : 'none';
+}
+
+window.openStaffModal = function(el) {
+  const staffId = el.dataset.staffId;
+  const s = state.staff.find(x => x['ID'] === staffId) || {};
+  state.editingStaffId = staffId || null;
+  document.getElementById('staffEditName').value = s['氏名'] || '';
+  document.getElementById('staffEditGender').value = s['性別'] || '男性';
+  document.getElementById('staffEditHireDate').value = s['入社日'] || '';
+  document.getElementById('staffEditWeeklyDays').value = s['週所定労働日数'] || 5;
+  document.getElementById('staffEditType').value = s['雇用形態'] || 'アルバイト';
+  document.getElementById('staffEditHourly').value = s['時給'] || '';
+  document.getElementById('staffEditMonthly').value = s['月給'] || '';
+  document.getElementById('staffEditTransportType').value = s['交通費タイプ'] || 'daily';
+  document.getElementById('staffEditTransport').value = s['交通費'] || '';
+  document.getElementById('staffEditCommuteFee').value = s['定期代'] || '';
+  document.getElementById('staffEditNote').value = s['備考'] || '';
+  syncStaffTypeFields();
+  syncTransportFields();
+  document.getElementById('btnDeleteStaff').style.display = staffId ? '' : 'none';
+  document.getElementById('staffModal').classList.add('open');
+};
+
+document.getElementById('btnAddStaff').addEventListener('click', () => {
+  state.editingStaffId = null;
+  document.getElementById('staffEditName').value = '';
+  document.getElementById('staffEditGender').value = '男性';
+  document.getElementById('staffEditHireDate').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('staffEditWeeklyDays').value = 5;
+  document.getElementById('staffEditType').value = 'アルバイト';
+  document.getElementById('staffEditHourly').value = '';
+  document.getElementById('staffEditMonthly').value = '';
+  document.getElementById('staffEditTransportType').value = 'daily';
+  document.getElementById('staffEditTransport').value = '';
+  document.getElementById('staffEditCommuteFee').value = '';
+  document.getElementById('staffEditNote').value = '';
+  syncStaffTypeFields();
+  syncTransportFields();
+  document.getElementById('btnDeleteStaff').style.display = 'none';
+  document.getElementById('staffModal').classList.add('open');
+});
+
+document.getElementById('btnSaveStaff').addEventListener('click', async () => {
+  const btn = document.getElementById('btnSaveStaff');
+  const staff = {
+    'ID': state.editingStaffId || '',
+    '氏名': document.getElementById('staffEditName').value,
+    '性別': document.getElementById('staffEditGender').value,
+    '入社日': document.getElementById('staffEditHireDate').value,
+    '週所定労働日数': document.getElementById('staffEditWeeklyDays').value,
+    '雇用形態': document.getElementById('staffEditType').value,
+    '時給': document.getElementById('staffEditHourly').value,
+    '月給': document.getElementById('staffEditMonthly').value,
+    '交通費タイプ': document.getElementById('staffEditTransportType').value,
+    '交通費': document.getElementById('staffEditTransport').value,
+    '定期代': document.getElementById('staffEditCommuteFee').value,
+    '備考': document.getElementById('staffEditNote').value,
+  };
+  setButtonLoading(btn, true, '保存中…');
+  const res = await apiPost('saveStaff', { staff });
+  setButtonLoading(btn, false);
+  if (res.success) {
+    showToast('保存しました');
+    document.getElementById('staffModal').classList.remove('open');
+    init();
+  } else {
+    showToast(res.error || '失敗しました');
+  }
+});
+
+document.getElementById('btnDeleteStaff').addEventListener('click', async () => {
+  if (!state.editingStaffId) return;
+  if (!confirm('このスタッフを削除しますか？')) return;
+  const btn = document.getElementById('btnDeleteStaff');
+  setButtonLoading(btn, true, '削除中…');
+  const res = await apiPost('deleteStaff', { staffId: state.editingStaffId });
+  setButtonLoading(btn, false);
+  if (res.success) {
+    showToast('削除しました');
+    document.getElementById('staffModal').classList.remove('open');
+    init();
+  } else {
+    showToast(res.error || '失敗しました');
+  }
+});
+
+// ---------- 有給休暇 ----------
+function renderLeaveList() {
+  const wrap = document.getElementById('leaveList');
+  if (!state.staff || state.staff.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">スタッフが登録されていません</div>';
+    return;
+  }
+  wrap.innerHTML = state.staff.map(s => {
+    const bal = (state.leaveBalances && state.leaveBalances[s['ID']]) ? state.leaveBalances[s['ID']].balance : 0;
+    const legal = state.legalLeaveResults ? state.legalLeaveResults.find(r => r.staffId === s['ID']) : null;
+
+    let legalHtml = '';
+    if (legal && legal.eligible && legal.shortfall > 0) {
+      legalHtml = `
+        <div class="rtime" style="color:var(--yellow); margin-top:4px;">
+          法定基準：${legal.legalTotalDays}日（${legal.baseDate}時点）／不足 ${legal.shortfall}日
+          ${legal.attendanceNote ? `<br>${legal.attendanceNote}（出勤率概算 ${legal.attendanceRatePct}%）` : ''}
+        </div>
+        <button class="btn btn-in btn-small" style="margin-top:6px;" onclick="event.stopPropagation(); quickGrantLegal('${s['ID']}', ${legal.shortfall})">法定通り ${legal.shortfall}日 付与する</button>
+      `;
+    } else if (legal && !legal.eligible) {
+      legalHtml = `<div class="rtime" style="margin-top:4px;">${legal.reason}</div>`;
+    }
+
+    return `
+    <div class="record-row tappable" data-staff-id="${s['ID']}" onclick="openLeaveModal(this)" style="cursor:pointer; display:block;">
+      <div style="display:flex; justify-content:space-between;">
+        <span class="rname">${s['氏名']}</span>
+        <span class="rtime">残 ${bal} 日</span>
+      </div>
+      ${legalHtml}
+    </div>
+  `;
+  }).join('');
+}
+
+document.getElementById('btnCheckLegalLeave').addEventListener('click', async () => {
+  const btn = document.getElementById('btnCheckLegalLeave');
+  setButtonLoading(btn, true, '確認中…');
+  const res = await apiGet('checkLegalLeave');
+  setButtonLoading(btn, false);
+  if (res.success) {
+    state.legalLeaveResults = res.results;
+    renderLeaveList();
+    const shortfallCount = res.results.filter(r => r.eligible && r.shortfall > 0).length;
+    showToast(shortfallCount > 0 ? `${shortfallCount}名に付与不足の可能性があります` : '全員、法定基準を満たしています');
+  } else {
+    showToast(res.error || '確認に失敗しました');
+  }
+});
+
+window.quickGrantLegal = async function(staffId, days) {
+  const res = await apiPost('grantLeave', { staffId, days, note: '法定基準に基づく自動計算付与' });
+  if (res.success) {
+    showToast('付与しました');
+    init();
+  } else {
+    showToast(res.error || '失敗しました');
+  }
+};
+
+window.openLeaveModal = function(el) {
+  const staffId = el.dataset.staffId;
+  const s = state.staff.find(x => x['ID'] === staffId) || {};
+  const bal = (state.leaveBalances && state.leaveBalances[staffId]) ? state.leaveBalances[staffId].balance : 0;
+  document.getElementById('leaveModal').dataset.staffId = staffId;
+  document.getElementById('leaveStaffName').textContent = s['氏名'] || '';
+  document.getElementById('leaveBalanceDisplay').textContent = bal + ' 日';
+  document.getElementById('leaveActionType').value = 'grant';
+  document.getElementById('leaveDate').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('leaveDays').value = 1;
+  document.getElementById('leaveNote').value = '';
+  syncLeaveFields();
+  document.getElementById('leaveModal').classList.add('open');
+};
+
+function syncLeaveFields() {
+  const isUse = document.getElementById('leaveActionType').value === 'use';
+  document.getElementById('leaveDateField').style.display = isUse ? '' : 'none';
+}
+document.getElementById('leaveActionType').addEventListener('change', syncLeaveFields);
+
+document.getElementById('btnCancelLeave').addEventListener('click', () => {
+  document.getElementById('leaveModal').classList.remove('open');
+});
+
+document.getElementById('btnSaveLeave').addEventListener('click', async () => {
+  const btn = document.getElementById('btnSaveLeave');
+  const staffId = document.getElementById('leaveModal').dataset.staffId;
+  const actionType = document.getElementById('leaveActionType').value;
+  const days = document.getElementById('leaveDays').value;
+  const note = document.getElementById('leaveNote').value;
+  const date = document.getElementById('leaveDate').value;
+
+  setButtonLoading(btn, true, '記録中…');
+  const res = await apiPost(actionType === 'grant' ? 'grantLeave' : 'useLeave', {
+    staffId, days, note, date
+  });
+  setButtonLoading(btn, false);
+  if (res.success) {
+    showToast('記録しました');
+    document.getElementById('leaveModal').classList.remove('open');
+    init();
+  } else {
+    showToast(res.error || '失敗しました');
+  }
+});
+
+init();
 </script>
 </body>
 </html>
