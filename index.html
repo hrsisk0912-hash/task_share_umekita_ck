@@ -839,7 +839,7 @@
 
 // 【重要】GASのWeb APIデプロイ後に発行されるURLをここに設定してください
 // 拡張機能→Apps Script→デプロイ→新しいデプロイ→種類「ウェブアプリ」で発行されるURL
-const API_BASE_URL = 'https://script.google.com/macros/s/AKfycbyyDYAO5PUy8TgM09TfsmTvI9OZLYLeWapHPLxevgTloukLSxR6_7MeIAsRGQwr0SPo/exec';
+const API_BASE_URL = 'https://script.google.com/macros/s/AKfycbwTGqAgZfO7J1CN6UnCs96uR4N6xhWMD99IvUT0WRJiOje-UIeYReeVGkgvZ1a3MOB3ng/exec';
 
 const STORAGE_KEY_STAFF_NAME = 'tasksShareApp_staffName';
 
@@ -864,7 +864,6 @@ async function callApi(action, params) {
     });
     const data = await res.json();
     // デバッグ用ログ（問題解消後に削除予定）
-    console.log('[API]', action, JSON.stringify(data).substring(0, 200));
     if (!data.success && data.error) {
       showToast(data.error);
     }
@@ -1256,12 +1255,10 @@ async function completeTask(taskId, ownerName, buttonEl) {
     }
   }
 
-  console.log('[completeTask] taskId:', taskId, 'ownerName:', ownerName);
 
   // ② バックエンドに完了を書き込む
   const data = await callApi('completeTask', { staffName: ownerName, taskId: taskId });
 
-  console.log('[completeTask] result:', JSON.stringify(data));
 
   // success: true なら成功（trueでない場合のみ失敗扱い）
   if (data && data.success === true) {
@@ -1282,7 +1279,6 @@ async function completeTask(taskId, ownerName, buttonEl) {
     if (buttonEl) buttonEl.style.display = '';
     const errMsg = (data && data.error) ? data.error : '不明なエラー';
     showToast('エラー: ' + errMsg);
-    console.error('[completeTask] failed:', errMsg);
   }
 }
 
@@ -1427,7 +1423,6 @@ async function openMinutesDetail(sheetName, clickedEl) {
   activeMinutesSheetName = sheetName;
   document.getElementById('minutesDetailTitle').textContent = data.title || sheetName;
 
-  console.log('[minutesDetail] data:', JSON.stringify(data).substring(0, 300));
 
   // 記入者
   const authorEl = document.getElementById('minutesDetailAuthor');
@@ -1489,7 +1484,6 @@ function openMinutesEditModal() {
   });
   // 現在の記入者があれば選択状態にする
   const currentAuthor = document.getElementById('minutesDetailAuthor').textContent;
-  console.log('[minutesEdit] currentAuthor:', currentAuthor, 'isEmpty:', document.getElementById('minutesDetailAuthor').classList.contains('empty'));
   if (currentAuthor && !document.getElementById('minutesDetailAuthor').classList.contains('empty')) {
     authorSelect.value = currentAuthor;
   } else {
